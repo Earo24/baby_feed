@@ -1,0 +1,22 @@
+[Unit]
+Description=Baby Feed Next.js application
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/baby-feed
+Environment=NODE_ENV=production
+Environment=COZE_PROJECT_ENV=PROD
+Environment=DEPLOY_RUN_PORT=9001
+Environment=HOSTNAME=0.0.0.0
+Environment=SQLITE_PATH=/opt/baby-feed/data/baby-feed.sqlite
+Environment=NEXT_TELEMETRY_DISABLED=1
+ExecStart=/usr/bin/pnpm run start
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
