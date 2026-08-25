@@ -57,15 +57,20 @@ function getCurrentTimeInputValue(): string {
   return `${hours}:${minutes}`;
 }
 
-function buildStartedAt(time: string, usePreviousDay: boolean): string {
-  const match = /^(\d{2}):(\d{2})$/.exec(time);
-  if (!match) return time;
+export function buildSolidFoodStartedAt(
+  time: string,
+  usePreviousDay: boolean,
+  now: Date = new Date(),
+): string | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!match) return null;
 
-  const startedAt = new Date();
+  const startedAt = new Date(now.getTime());
+  if (Number.isNaN(startedAt.getTime())) return null;
   if (usePreviousDay) startedAt.setDate(startedAt.getDate() - 1);
   startedAt.setHours(Number(match[1]), Number(match[2]), 0, 0);
 
-  return Number.isNaN(startedAt.getTime()) ? time : startedAt.toISOString();
+  return startedAt.toISOString();
 }
 
 export function SolidFoodRecordRow({ record }: SolidFoodRecordRowProps) {
@@ -132,22 +137,29 @@ export function SolidFoodForm({
   const [error, setError] = useState('');
 
   const nameInvalid = error === '请输入食物名称';
-  const amountInvalid = error === '食用量必须大于 0' || error === '无效的食用量单位';
+  const amountInvalid = error === '食用量必须大于 0';
+  const unitInvalid = error === '无效的食用量单位';
   const timeInvalid = error === '无效的记录时间';
-  const formError = error && !nameInvalid && !amountInvalid && !timeInvalid ? error : '';
+  const formError = error && !nameInvalid && !amountInvalid && !unitInvalid && !timeInvalid ? error : '';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
 
     setError('');
+    const startedAt = buildSolidFoodStartedAt(time, usePreviousDay);
+    if (startedAt === null) {
+      setError('无效的记录时间');
+      return;
+    }
+
     const normalized = normalizeSolidFoodInput({
       recorder_name: recorderName,
       food_name: foodName,
       amount_value: amountValue,
       amount_unit: amountUnit,
       note,
-      started_at: buildStartedAt(time, usePreviousDay),
+      started_at: startedAt,
     });
 
     if (!normalized.success) {
@@ -251,7 +263,7 @@ export function SolidFoodForm({
                 />
                 {amountInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
               </Field>
-              <Field>
+              <Field data-invalid={unitInvalid}>
                 <FieldLabel htmlFor="solid-food-unit" style={{ color: '#8B7E74' }}>
                   单位
                 </FieldLabel>
@@ -261,6 +273,7 @@ export function SolidFoodForm({
                 >
                   <SelectTrigger
                     id="solid-food-unit"
+                    aria-invalid={unitInvalid}
                     className="h-12 w-full px-3 text-base"
                     style={{
                       backgroundColor: '#FFFCF8',
@@ -280,6 +293,7 @@ export function SolidFoodForm({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                {unitInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
               </Field>
             </FieldGroup>
 
