@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveAwake, getAwakes, getFeeds, getLastFeed, getMedications, getPoops, getRoomById } from '@/storage/database/sqlite';
+import { getActiveAwake, getAwakes, getFeeds, getLastFeed, getMedications, getPoops, getRoomById, getSolidFoods } from '@/storage/database/sqlite';
 import { getChinaCycleStart } from '@/storage/database/time';
 
 export async function GET(
@@ -22,6 +22,7 @@ export async function GET(
         poops: getPoops(id, dayStartISO).slice(0, 50),
         medications: getMedications(id, dayStartISO).slice(0, 50),
         awakes: getAwakes(id, dayStartISO).slice(0, 50),
+        solid_foods: getSolidFoods(id, dayStartISO).slice(0, 50),
         activeAwake: getActiveAwake(id) || null,
         lastFeed: getLastFeed(id) || null,
       },
