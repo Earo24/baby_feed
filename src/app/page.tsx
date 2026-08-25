@@ -922,38 +922,40 @@ export default function Home() {
               <span className="text-xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>{todayCount}</span>
               <span className="text-sm" style={{ color: '#A89888' }}>次</span>
             </div>
-            <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-semibold tabular-nums" style={{ color: '#D4A76A' }}>{todayTotalMl}</span>
-              <span className="text-sm" style={{ color: '#A89888' }}>ml</span>
+            <div className="flex shrink-0 items-center gap-6">
+              <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-semibold tabular-nums" style={{ color: '#D4A76A' }}>{todayTotalMl}</span>
+                <span className="text-sm" style={{ color: '#A89888' }}>ml</span>
+              </div>
             </div>
             {todaySolidFoodCount > 0 ? (
-              <>
-                <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
+              <div className="flex shrink-0 items-center gap-6">
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm" style={{ color: '#6F9B78' }}>辅食</span>
                   <span className="text-xl font-semibold tabular-nums" style={{ color: '#6F9B78' }}>{todaySolidFoodCount}</span>
                   <span className="text-sm" style={{ color: '#6F9B78' }}>次</span>
                 </div>
-              </>
+              </div>
             ) : null}
             {room.poops && room.poops.length > 0 && (
-              <>
-                <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
+              <div className="flex shrink-0 items-center gap-6">
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
                 <div className="flex items-baseline gap-1">
                   <span className="text-xl font-semibold tabular-nums" style={{ color: '#B8A08A' }}>{room.poops.length}</span>
                   <span className="text-sm" style={{ color: '#A89888' }}>便</span>
                 </div>
-              </>
+              </div>
             )}
             {room.medications && room.medications.length > 0 && (
-              <>
-                <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
+              <div className="flex shrink-0 items-center gap-6">
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
                 <div className="flex items-baseline gap-1">
                   <span className="text-xl font-semibold tabular-nums" style={{ color: '#8B9EAF' }}>{room.medications.length}</span>
                   <span className="text-sm" style={{ color: '#A89888' }}>药</span>
                 </div>
-              </>
+              </div>
             )}
           </div>
           {room.awakes && room.awakes.length > 0 && (
@@ -1028,10 +1030,11 @@ export default function Home() {
           {[0, 1, 2].map((setIdx) => (
             <Fragment key={setIdx}>
               {/* Poop */}
-              <div data-btn-type="poop" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+              <div data-btn-type="poop" aria-hidden={setIdx !== 1 || undefined} className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
                   onClick={() => { haptic('medium'); handleQuickAddPoop(); }}
                   disabled={submitting}
+                  tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
                   style={{ backgroundColor: '#C4A882', width: 70, height: 70 }}
                 >
@@ -1041,10 +1044,11 @@ export default function Home() {
               </div>
 
               {/* Awake */}
-              <div data-btn-type="awake" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+              <div data-btn-type="awake" aria-hidden={setIdx !== 1 || undefined} className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
                   onClick={() => { haptic('medium'); room.activeAwake ? handleEndAwake() : handleQuickAddAwake(); }}
                   disabled={submitting}
+                  tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
                   style={{ backgroundColor: room.activeAwake ? '#6B9F7E' : '#7BAF8E', width: 70, height: 70 }}
                 >
@@ -1065,10 +1069,11 @@ export default function Home() {
               </div>
 
               {/* Feed */}
-              <div data-btn-type="feed" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+              <div data-btn-type="feed" aria-hidden={setIdx !== 1 || undefined} className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
                   onClick={() => { haptic('heavy'); handleQuickAdd(); }}
                   disabled={submitting}
+                  tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full text-white font-medium flex flex-col items-center justify-center gap-1 disabled:opacity-50"
                   style={{ backgroundColor: '#D4A76A', width: 70, height: 70 }}
                 >
@@ -1083,10 +1088,11 @@ export default function Home() {
               </div>
 
               {/* Solid food */}
-              <div data-btn-type="solid-food" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+              <div data-btn-type="solid-food" aria-hidden={setIdx !== 1 || undefined} className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
                   onClick={() => { haptic('medium'); handleQuickAddSolidFood(); }}
                   disabled={submitting}
+                  tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
                   style={{ backgroundColor: '#6F9B78', width: 70, height: 70 }}
                 >
@@ -1096,10 +1102,11 @@ export default function Home() {
               </div>
 
               {/* Medication */}
-              <div data-btn-type="med" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+              <div data-btn-type="med" aria-hidden={setIdx !== 1 || undefined} className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
                   onClick={() => { haptic('medium'); handleQuickAddMed(); }}
                   disabled={submitting}
+                  tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
                   style={{ backgroundColor: '#9AADB8', width: 70, height: 70 }}
                 >
