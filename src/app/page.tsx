@@ -5,6 +5,7 @@ import { Utensils } from 'lucide-react';
 
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
+import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
 // Types
@@ -263,6 +264,7 @@ export default function Home() {
   const [awakeDuration, setAwakeDuration] = useState('');
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [requestState] = useState(() => createRequestState(historyDays));
   const btnScrollRef = useRef<HTMLDivElement>(null);
   const btnLoopJumping = useRef(false);
   const btnScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -348,12 +350,25 @@ export default function Home() {
   }, [updateBtnScales, checkBtnLoop]);
 
   const fetchRoom = useCallback(async (roomId: string) => {
+    const requestToken = requestState.roomGate.begin(roomId);
     try {
       const res = await fetch(`/api/rooms/${roomId}`);
       const json = await res.json();
-      if (json.success) { setRoom(json.data); } else { localStorage.removeItem('feedRoomId'); setShowSetup(true); setRoom(null); }
-    } catch { /* keep existing data */ } finally { setLoading(false); }
-  }, []);
+      if (!requestState.roomGate.isLatest(requestToken)) return;
+      if (json.success) {
+        requestState.setActiveRoomId(roomId);
+        setRoom(json.data);
+      } else {
+        requestState.setActiveRoomId(null);
+        requestState.historyGate.invalidate();
+        localStorage.removeItem('feedRoomId');
+        setShowSetup(true);
+        setRoom(null);
+      }
+    } catch { /* keep existing data */ } finally {
+      if (requestState.roomGate.isLatest(requestToken)) setLoading(false);
+    }
+  }, [requestState]);
 
   useEffect(() => {
     const savedRoomId = localStorage.getItem('feedRoomId');
@@ -412,7 +427,15 @@ export default function Home() {
     try {
       const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: babyName || '宝宝' }) });
       const json = await res.json();
-      if (json.success) { localStorage.setItem('feedRoomId', json.data.id); setRoom({ ...json.data, feeds: [], poops: [], medications: [], awakes: [], solid_foods: [], lastFeed: null, activeAwake: null }); setShowSetup(false); }
+      if (json.success) {
+        requestState.roomGate.invalidate();
+        requestState.historyGate.invalidate();
+        requestState.setActiveRoomId(json.data.id);
+        setHistoryLoading(false);
+        localStorage.setItem('feedRoomId', json.data.id);
+        setRoom({ ...json.data, feeds: [], poops: [], medications: [], awakes: [], solid_foods: [], lastFeed: null, activeAwake: null });
+        setShowSetup(false);
+      }
     } catch { /* silent */ }
   };
 
@@ -421,7 +444,14 @@ export default function Home() {
     try {
       const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: joinCode.trim().toUpperCase(), name: babyName || '宝宝' }) });
       const json = await res.json();
-      if (json.success) { localStorage.setItem('feedRoomId', json.data.id); fetchRoom(json.data.id); setShowSetup(false); }
+      if (json.success) {
+        requestState.historyGate.invalidate();
+        requestState.setActiveRoomId(json.data.id);
+        setHistoryLoading(false);
+        localStorage.setItem('feedRoomId', json.data.id);
+        fetchRoom(json.data.id);
+        setShowSetup(false);
+      }
     } catch { /* silent */ }
   };
 
@@ -489,18 +519,39 @@ export default function Home() {
     }
   };
 
-  const loadSolidFoodHistory = async (days: number) => {
-    if (!room) return;
-    const res = await fetch(`/api/rooms/${room.id}/solid-foods?days=${days}`);
-    const json = await res.json();
-    if (json.success) setHistorySolidFoods(json.data);
-  };
+  const loadHistorySnapshot = useCallback(async (roomId: string, days: number) => {
+    const requestToken = requestState.historyGate.begin(`${roomId}:${days}`);
+    setHistoryLoading(true);
+    try {
+      const snapshot = await fetchHistorySnapshot<
+        FeedRecord,
+        PoopRecord,
+        MedicationRecord,
+        AwakeRecord,
+        SolidFoodRecord
+      >(roomId, days);
+      if (
+        !requestState.historyGate.isLatest(requestToken)
+        || !requestState.matchesHistory(roomId, days)
+      ) return;
+      setHistoryFeeds(snapshot.feeds);
+      setHistoryPoops(snapshot.poops);
+      setHistoryMedications(snapshot.medications);
+      setHistoryAwakes(snapshot.awakes);
+      setHistorySolidFoods(snapshot.solidFoods);
+    } catch { /* keep existing snapshot */ } finally {
+      if (
+        requestState.historyGate.isLatest(requestToken)
+        && requestState.matchesHistory(roomId, days)
+      ) setHistoryLoading(false);
+    }
+  }, [requestState]);
 
   const handleDeleteSolidFood = async (solidFoodId: string) => {
     if (!room) return;
     const refreshServerState = () => [
       fetchRoom(room.id),
-      ...(showHistory ? [loadSolidFoodHistory(historyDays)] : []),
+      ...(showHistory ? [loadHistorySnapshot(room.id, historyDays)] : []),
     ];
 
     try {
@@ -649,60 +700,29 @@ export default function Home() {
     } catch { /* silent */ }
   };
 
-  const handleLeaveRoom = () => { localStorage.removeItem('feedRoomId'); setRoom(null); setShowSetup(true); };
+  const handleLeaveRoom = () => {
+    requestState.roomGate.invalidate();
+    requestState.historyGate.invalidate();
+    requestState.setActiveRoomId(null);
+    setHistoryLoading(false);
+    setShowHistory(false);
+    localStorage.removeItem('feedRoomId');
+    setRoom(null);
+    setShowSetup(true);
+  };
 
   const handleOpenHistory = async () => {
     if (!room) return;
     setShowHistory(true);
-    setHistoryLoading(true);
-    try {
-      const [feedRes, poopRes, medRes, awakeRes, solidFoodRes] = await Promise.all([
-        fetch(`/api/rooms/${room.id}/feeds?days=${historyDays}`),
-        fetch(`/api/rooms/${room.id}/poops?days=${historyDays}`),
-        fetch(`/api/rooms/${room.id}/medications?days=${historyDays}`),
-        fetch(`/api/rooms/${room.id}/awakes?days=${historyDays}`),
-        fetch(`/api/rooms/${room.id}/solid-foods?days=${historyDays}`),
-      ]);
-      const [feedJson, poopJson, medJson, awakeJson, solidFoodJson] = await Promise.all([
-        feedRes.json(),
-        poopRes.json(),
-        medRes.json(),
-        awakeRes.json(),
-        solidFoodRes.json(),
-      ]);
-      if (feedJson.success) setHistoryFeeds(feedJson.data);
-      if (poopJson.success) setHistoryPoops(poopJson.data);
-      if (medJson.success) setHistoryMedications(medJson.data);
-      if (awakeJson.success) setHistoryAwakes(awakeJson.data);
-      if (solidFoodJson.success) setHistorySolidFoods(solidFoodJson.data);
-    } catch { /* silent */ } finally { setHistoryLoading(false); }
+    requestState.setHistoryDays(historyDays);
+    await loadHistorySnapshot(room.id, historyDays);
   };
 
   const handleHistoryDaysChange = async (days: number) => {
     if (!room) return;
+    requestState.setHistoryDays(days);
     setHistoryDays(days);
-    setHistoryLoading(true);
-    try {
-      const [feedRes, poopRes, medRes, awakeRes, solidFoodRes] = await Promise.all([
-        fetch(`/api/rooms/${room.id}/feeds?days=${days}`),
-        fetch(`/api/rooms/${room.id}/poops?days=${days}`),
-        fetch(`/api/rooms/${room.id}/medications?days=${days}`),
-        fetch(`/api/rooms/${room.id}/awakes?days=${days}`),
-        fetch(`/api/rooms/${room.id}/solid-foods?days=${days}`),
-      ]);
-      const [feedJson, poopJson, medJson, awakeJson, solidFoodJson] = await Promise.all([
-        feedRes.json(),
-        poopRes.json(),
-        medRes.json(),
-        awakeRes.json(),
-        solidFoodRes.json(),
-      ]);
-      if (feedJson.success) setHistoryFeeds(feedJson.data);
-      if (poopJson.success) setHistoryPoops(poopJson.data);
-      if (medJson.success) setHistoryMedications(medJson.data);
-      if (awakeJson.success) setHistoryAwakes(awakeJson.data);
-      if (solidFoodJson.success) setHistorySolidFoods(solidFoodJson.data);
-    } catch { /* silent */ } finally { setHistoryLoading(false); }
+    await loadHistorySnapshot(room.id, days);
   };
 
   // Loading
