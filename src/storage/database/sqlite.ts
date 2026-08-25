@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import type { SolidFoodUnit } from '@/lib/solid-food';
 
 export interface RoomRow {
   id: string;
@@ -53,6 +54,20 @@ export interface AwakeRow {
   ended_at: string | null;
   created_at: string;
 }
+
+export interface SolidFoodRow {
+  id: string;
+  room_id: string;
+  recorder_name: string | null;
+  food_name: string;
+  amount_value: number | null;
+  amount_unit: SolidFoodUnit | null;
+  note: string | null;
+  started_at: string;
+  created_at: string;
+}
+
+type TimedRecordTable = 'poop_records' | 'medication_records' | 'awake_records' | 'solid_food_records';
 
 type SqliteDatabase = Database.Database;
 
@@ -120,10 +135,23 @@ function initializeDatabase(db: SqliteDatabase): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS solid_food_records (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      recorder_name TEXT,
+      food_name TEXT NOT NULL,
+      amount_value REAL,
+      amount_unit TEXT,
+      note TEXT,
+      started_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS feed_records_room_started_idx ON feed_records(room_id, started_at);
     CREATE INDEX IF NOT EXISTS poop_records_room_started_idx ON poop_records(room_id, started_at);
     CREATE INDEX IF NOT EXISTS medication_records_room_started_idx ON medication_records(room_id, started_at);
     CREATE INDEX IF NOT EXISTS awake_records_room_started_idx ON awake_records(room_id, started_at);
+    CREATE INDEX IF NOT EXISTS solid_food_records_room_started_idx ON solid_food_records(room_id, started_at);
   `);
 }
 
@@ -189,11 +217,11 @@ export function updateFeed(id: string, updates: Partial<Pick<FeedRow, 'amount_ml
   return getDatabase().prepare('SELECT * FROM feed_records WHERE id = ?').get(id) as FeedRow | undefined;
 }
 
-export function deleteById(table: 'feed_records' | 'poop_records' | 'medication_records' | 'awake_records', id: string): void {
+export function deleteById(table: 'feed_records' | TimedRecordTable, id: string): void {
   getDatabase().prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
 }
 
-function getTimedRows<T>(table: 'poop_records' | 'medication_records' | 'awake_records', roomId: string, startIso?: string): T[] {
+function getTimedRows<T>(table: TimedRecordTable, roomId: string, startIso?: string): T[] {
   const db = getDatabase();
   const query = startIso
     ? `SELECT * FROM ${table} WHERE room_id = ? AND started_at >= ? ORDER BY started_at DESC`
@@ -204,6 +232,7 @@ function getTimedRows<T>(table: 'poop_records' | 'medication_records' | 'awake_r
 export function getPoops(roomId: string, startIso?: string): PoopRow[] { return getTimedRows<PoopRow>('poop_records', roomId, startIso); }
 export function getMedications(roomId: string, startIso?: string): MedicationRow[] { return getTimedRows<MedicationRow>('medication_records', roomId, startIso); }
 export function getAwakes(roomId: string, startIso?: string): AwakeRow[] { return getTimedRows<AwakeRow>('awake_records', roomId, startIso); }
+export function getSolidFoods(roomId: string, startIso?: string): SolidFoodRow[] { return getTimedRows<SolidFoodRow>('solid_food_records', roomId, startIso); }
 
 export function insertPoop(input: Omit<PoopRow, 'id' | 'created_at'>): PoopRow {
   const row: PoopRow = { ...input, id: createId(), created_at: nowIso() };
@@ -226,6 +255,14 @@ export function insertAwake(input: Omit<AwakeRow, 'id' | 'created_at' | 'ended_a
   getDatabase().prepare(`INSERT INTO awake_records
     (id, room_id, recorder_name, note, started_at, ended_at, created_at)
     VALUES (@id, @room_id, @recorder_name, @note, @started_at, @ended_at, @created_at)`).run(row);
+  return row;
+}
+
+export function insertSolidFood(input: Omit<SolidFoodRow, 'id' | 'created_at'>): SolidFoodRow {
+  const row: SolidFoodRow = { ...input, id: createId(), created_at: nowIso() };
+  getDatabase().prepare(`INSERT INTO solid_food_records
+    (id, room_id, recorder_name, food_name, amount_value, amount_unit, note, started_at, created_at)
+    VALUES (@id, @room_id, @recorder_name, @food_name, @amount_value, @amount_unit, @note, @started_at, @created_at)`).run(row);
   return row;
 }
 
