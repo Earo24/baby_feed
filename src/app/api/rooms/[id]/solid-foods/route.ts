@@ -13,7 +13,14 @@ export async function POST(
       return NextResponse.json({ success: false, error: '房间不存在' }, { status: 404 });
     }
 
-    const result = normalizeSolidFoodInput(await request.json());
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: '请求数据格式错误' }, { status: 400 });
+    }
+
+    const result = normalizeSolidFoodInput(body);
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
     }
@@ -32,6 +39,10 @@ export async function GET(
 ) {
   try {
     const { id: roomId } = await params;
+    if (!getRoomById(roomId)) {
+      return NextResponse.json({ success: false, error: '房间不存在' }, { status: 404 });
+    }
+
     const parsedDays = Number.parseInt(new URL(request.url).searchParams.get('days') || '1', 10);
     const days = Number.isNaN(parsedDays) ? 1 : Math.min(Math.max(parsedDays, 1), 30);
     const records = getSolidFoods(roomId, getChinaCycleStart(days));
