@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { Utensils } from 'lucide-react';
 
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
+import { SwipeToDelete } from '@/components/swipe-to-delete';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
 // Types
@@ -100,71 +101,6 @@ function getElapsedShort(startStr: string, endStr: string): string {
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours >= 1) return `${diffHours}h${diffMinutes % 60}m`;
   return `${diffMinutes}m`;
-}
-
-// SwipeToDelete Component
-function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
-  const [offset, setOffset] = useState(0);
-  const [animating, setAnimating] = useState(false);
-  const startX = useRef(0);
-  const currentOffset = useRef(0);
-  const dragOffset = useRef(0);
-  const isDragging = useRef(false);
-  const [showHint, setShowHint] = useState(true);
-
-  useEffect(() => { const t = setTimeout(() => setShowHint(false), 3000); return () => clearTimeout(t); }, []);
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    startX.current = e.clientX;
-    currentOffset.current = offset;
-    dragOffset.current = offset;
-    isDragging.current = true;
-    setAnimating(false);
-  };
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging.current) return;
-    const diff = e.clientX - startX.current;
-    const newOffset = Math.max(-80, Math.min(0, currentOffset.current + diff));
-    dragOffset.current = newOffset;
-    setOffset(newOffset);
-  };
-  const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging.current) return;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-    isDragging.current = false;
-    setAnimating(true);
-    if (dragOffset.current < -40) { setOffset(-80); } else { setOffset(0); }
-  };
-
-  return (
-    <div className="relative overflow-hidden rounded-xl">
-      <div
-        className="absolute right-0 top-0 bottom-0 flex items-center justify-center w-20"
-        style={{ backgroundColor: '#E8836B' }}
-      >
-        <button onClick={onDelete} className="text-white text-sm font-medium">删除</button>
-      </div>
-      <div
-        className="relative"
-        style={{ transform: `translateX(${offset}px)`, transition: animating ? 'transform 0.2s ease' : 'none', touchAction: 'pan-y' }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
-      >
-        {children}
-      </div>
-      {showHint && offset === 0 && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 animate-pulse" style={{ color: '#D8CEC4' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // Flat SVG Icons
@@ -1548,7 +1484,7 @@ export default function Home() {
               ) : (
                 <div className="space-y-2">
                   {allItems.map((item) => item._type === 'feed' ? (
-                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
+                    <SwipeToDelete deleteLabel={`删除喂奶记录：${item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
                       <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#D4A76A' }} />
                         <span className="text-base" style={{ color: '#3D3229' }}>
@@ -1568,7 +1504,7 @@ export default function Home() {
                       </div>
                     </SwipeToDelete>
                   ) : item._type === 'poop' ? (
-                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
+                    <SwipeToDelete deleteLabel={`删除便便记录：${item.note || '便便'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
                       <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#B8A08A' }} />
                         <PoopIcon size={14} color="#B8A08A" />
@@ -1584,7 +1520,7 @@ export default function Home() {
                       </div>
                     </SwipeToDelete>
                   ) : item._type === 'med' ? (
-                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
+                    <SwipeToDelete deleteLabel={`删除吃药记录：${item.medicine_name || '吃药'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
                       <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B9EAF' }} />
                         <PillIcon size={14} color="#8B9EAF" />
@@ -1603,11 +1539,11 @@ export default function Home() {
                       </div>
                     </SwipeToDelete>
                   ) : item._type === 'solid-food' ? (
-                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
+                    <SwipeToDelete deleteLabel={`删除辅食记录：${item.food_name}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
                       <SolidFoodRecordRow record={item} />
                     </SwipeToDelete>
                   ) : (
-                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
+                    <SwipeToDelete deleteLabel={`删除清醒记录：${item.ended_at ? getElapsedShort(item.started_at, item.ended_at) : '进行中'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
                       <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#7BAF7B' }} />
                         <EyeOpenIcon size={14} color="#7BAF7B" />
@@ -1745,7 +1681,7 @@ export default function Home() {
                       </div>
                       <div className="space-y-2">
                         {items.map((item) => item._type === 'feed' ? (
-                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
+                          <SwipeToDelete deleteLabel={`删除喂奶记录：${item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
                             <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#D4A76A' }} />
                               <span className="text-base" style={{ color: '#3D3229' }}>{item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}</span>
@@ -1759,7 +1695,7 @@ export default function Home() {
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'poop' ? (
-                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
+                          <SwipeToDelete deleteLabel={`删除便便记录：${item.note || '便便'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
                             <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#B8A08A' }} />
                               <PoopIcon size={14} color="#B8A08A" />
@@ -1769,7 +1705,7 @@ export default function Home() {
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'med' ? (
-                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
+                          <SwipeToDelete deleteLabel={`删除吃药记录：${item.medicine_name || '吃药'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
                             <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B9EAF' }} />
                               <PillIcon size={14} color="#8B9EAF" />
@@ -1780,11 +1716,11 @@ export default function Home() {
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'solid-food' ? (
-                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
+                          <SwipeToDelete deleteLabel={`删除辅食记录：${item.food_name}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
                             <SolidFoodRecordRow record={item} />
                           </SwipeToDelete>
                         ) : (
-                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
+                          <SwipeToDelete deleteLabel={`删除清醒记录：${item.note || '清醒'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
                             <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
                               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#7BAF8E' }} />
                               <EyeOpenIcon size={14} color="#7BAF8E" />
