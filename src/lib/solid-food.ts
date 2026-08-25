@@ -32,18 +32,60 @@ export type SolidFoodInputResult =
   | { success: true; data: NormalizedSolidFoodInput }
   | { success: false; error: string };
 
-const UNIT_LABELS: Record<SolidFoodUnit, string> = {
-  g: '克',
-  ml: '毫升',
-  spoon: '勺',
-  bowl: '碗',
-};
+type SolidFoodUnitOption = Extract<
+  (typeof SOLID_FOOD_UNIT_OPTIONS)[number],
+  { value: SolidFoodUnit }
+>;
 
-const VALID_UNITS = new Set<SolidFoodUnit>(['g', 'ml', 'spoon', 'bowl']);
+const SOLID_FOOD_UNIT_ENTRIES = SOLID_FOOD_UNIT_OPTIONS.filter(
+  (option): option is SolidFoodUnitOption => option.value !== 'none',
+);
+const UNIT_LABELS = Object.fromEntries(
+  SOLID_FOOD_UNIT_ENTRIES.map(({ value, label }) => [value, label]),
+) as Record<SolidFoodUnit, string>;
+const VALID_UNITS = new Set<SolidFoodUnit>(
+  SOLID_FOOD_UNIT_ENTRIES.map(({ value }) => value),
+);
+
+const ISO_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-](\d{2}):(\d{2}))$/;
+const DAYS_BY_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 
 function optionalTrimmedString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   return value.trim() || null;
+}
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function normalizeStartedAt(value: unknown): string | null {
+  if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+    return new Date().toISOString();
+  }
+  if (typeof value !== 'string') return null;
+
+  const match = ISO_DATETIME_PATTERN.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hours = Number(match[4]);
+  const minutes = Number(match[5]);
+  const seconds = Number(match[6]);
+  const offsetHours = match[9] === undefined ? 0 : Number(match[9]);
+  const offsetMinutes = match[10] === undefined ? 0 : Number(match[10]);
+
+  if (month < 1 || month > 12 || hours > 23 || minutes > 59 || seconds > 59) return null;
+  if (offsetHours > 23 || offsetMinutes > 59) return null;
+
+  const daysInMonth = month === 2 && isLeapYear(year) ? 29 : DAYS_BY_MONTH[month - 1];
+  if (day < 1 || day > daysInMonth) return null;
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return null;
+  return new Date(timestamp).toISOString();
 }
 
 export function normalizeSolidFoodInput(input: unknown): SolidFoodInputResult {
@@ -82,11 +124,8 @@ export function normalizeSolidFoodInput(input: unknown): SolidFoodInputResult {
     }
   }
 
-  const rawStartedAt = source.started_at;
-  const startedAt = rawStartedAt === undefined || rawStartedAt === null || rawStartedAt === ''
-    ? new Date().toISOString()
-    : String(rawStartedAt);
-  if (Number.isNaN(Date.parse(startedAt))) {
+  const startedAt = normalizeStartedAt(source.started_at);
+  if (startedAt === null) {
     return { success: false, error: '无效的记录时间' };
   }
 
@@ -98,7 +137,7 @@ export function normalizeSolidFoodInput(input: unknown): SolidFoodInputResult {
       amount_value: amountValue,
       amount_unit: amountUnit,
       note: optionalTrimmedString(source.note),
-      started_at: new Date(startedAt).toISOString(),
+      started_at: startedAt,
     },
   };
 }
