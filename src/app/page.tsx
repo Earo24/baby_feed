@@ -108,27 +108,36 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
   const [animating, setAnimating] = useState(false);
   const startX = useRef(0);
   const currentOffset = useRef(0);
+  const dragOffset = useRef(0);
   const isDragging = useRef(false);
   const [showHint, setShowHint] = useState(true);
 
   useEffect(() => { const t = setTimeout(() => setShowHint(false), 3000); return () => clearTimeout(t); }, []);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0].clientX;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    startX.current = e.clientX;
     currentOffset.current = offset;
+    dragOffset.current = offset;
     isDragging.current = true;
     setAnimating(false);
   };
-  const onTouchMove = (e: React.TouchEvent) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging.current) return;
-    const diff = e.touches[0].clientX - startX.current;
+    const diff = e.clientX - startX.current;
     const newOffset = Math.max(-80, Math.min(0, currentOffset.current + diff));
+    dragOffset.current = newOffset;
     setOffset(newOffset);
   };
-  const onTouchEnd = () => {
+  const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
     isDragging.current = false;
     setAnimating(true);
-    if (offset < -40) { setOffset(-80); } else { setOffset(0); }
+    if (dragOffset.current < -40) { setOffset(-80); } else { setOffset(0); }
   };
 
   return (
@@ -141,10 +150,11 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
       </div>
       <div
         className="relative"
-        style={{ transform: `translateX(${offset}px)`, transition: animating ? 'transform 0.2s ease' : 'none' }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        style={{ transform: `translateX(${offset}px)`, transition: animating ? 'transform 0.2s ease' : 'none', touchAction: 'pan-y' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
       >
         {children}
       </div>
