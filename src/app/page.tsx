@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { Utensils } from 'lucide-react';
+
+import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
+import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
 // Types
 interface FeedRecord {
@@ -59,6 +63,7 @@ interface RoomData {
   poops: PoopRecord[];
   medications: MedicationRecord[];
   awakes: AwakeRecord[];
+  solid_foods: SolidFoodRecord[];
   lastFeed: LastFeed | null;
   activeAwake: AwakeRecord | null;
 }
@@ -278,8 +283,10 @@ export default function Home() {
   const [usePrevDay, setUsePrevDay] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [showSolidFoodForm, setShowSolidFoodForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFeeds, setHistoryFeeds] = useState<FeedRecord[]>([]);
+  const [historySolidFoods, setHistorySolidFoods] = useState<SolidFoodRecord[]>([]);
   const [historyPoops, setHistoryPoops] = useState<PoopRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyDays, setHistoryDays] = useState(7);
@@ -362,7 +369,7 @@ export default function Home() {
     const container = btnScrollRef.current;
     if (!container) return;
     const itemWidth = 140;
-    const oneSet = itemWidth * 4;
+    const oneSet = itemWidth * 5;
     const scrollLeft = container.scrollLeft;
     const viewportCenter = scrollLeft + container.clientWidth / 2;
     const currentSet = Math.floor(viewportCenter / oneSet);
@@ -459,7 +466,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: babyName || '宝宝' }) });
       const json = await res.json();
-      if (json.success) { localStorage.setItem('feedRoomId', json.data.id); setRoom({ ...json.data, feeds: [], poops: [], lastFeed: null }); setShowSetup(false); }
+      if (json.success) { localStorage.setItem('feedRoomId', json.data.id); setRoom({ ...json.data, feeds: [], poops: [], medications: [], awakes: [], solid_foods: [], lastFeed: null, activeAwake: null }); setShowSetup(false); }
     } catch { /* silent */ }
   };
 
@@ -506,6 +513,61 @@ export default function Home() {
       const json = await res.json();
       if (json.success) await fetchRoom(room.id);
     } catch { /* silent */ }
+  };
+
+  const handleQuickAddSolidFood = () => {
+    if (!room || submitting) return;
+    if (feederName) localStorage.setItem('feederName', feederName);
+    setShowSolidFoodForm(true);
+  };
+
+  const handleSubmitSolidFood = async (input: NormalizedSolidFoodInput) => {
+    if (!room) return { success: false, error: '房间不存在' };
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/solid-foods`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, error: json.error || '保存失败，请重试' };
+      }
+      await fetchRoom(room.id);
+      return { success: true };
+    } catch {
+      return { success: false, error: '网络异常，请重试' };
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const loadSolidFoodHistory = async (days: number) => {
+    if (!room) return;
+    const res = await fetch(`/api/rooms/${room.id}/solid-foods?days=${days}`);
+    const json = await res.json();
+    if (json.success) setHistorySolidFoods(json.data);
+  };
+
+  const handleDeleteSolidFood = async (solidFoodId: string) => {
+    if (!room) return;
+    const refreshServerState = () => [
+      fetchRoom(room.id),
+      ...(showHistory ? [loadSolidFoodHistory(historyDays)] : []),
+    ];
+
+    try {
+      const res = await fetch(`/api/solid-foods/${solidFoodId}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        await Promise.allSettled(refreshServerState());
+        return;
+      }
+      await Promise.all(refreshServerState());
+    } catch {
+      await Promise.allSettled(refreshServerState());
+    }
   };
 
   const handleQuickAddPoop = () => {
@@ -648,20 +710,25 @@ export default function Home() {
     setShowHistory(true);
     setHistoryLoading(true);
     try {
-      const [feedRes, poopRes, medRes, awakeRes] = await Promise.all([
+      const [feedRes, poopRes, medRes, awakeRes, solidFoodRes] = await Promise.all([
         fetch(`/api/rooms/${room.id}/feeds?days=${historyDays}`),
         fetch(`/api/rooms/${room.id}/poops?days=${historyDays}`),
         fetch(`/api/rooms/${room.id}/medications?days=${historyDays}`),
         fetch(`/api/rooms/${room.id}/awakes?days=${historyDays}`),
+        fetch(`/api/rooms/${room.id}/solid-foods?days=${historyDays}`),
       ]);
-      const feedJson = await feedRes.json();
-      const poopJson = await poopRes.json();
-      const medJson = await medRes.json();
-      const awakeJson = await awakeRes.json();
+      const [feedJson, poopJson, medJson, awakeJson, solidFoodJson] = await Promise.all([
+        feedRes.json(),
+        poopRes.json(),
+        medRes.json(),
+        awakeRes.json(),
+        solidFoodRes.json(),
+      ]);
       if (feedJson.success) setHistoryFeeds(feedJson.data);
       if (poopJson.success) setHistoryPoops(poopJson.data);
       if (medJson.success) setHistoryMedications(medJson.data);
       if (awakeJson.success) setHistoryAwakes(awakeJson.data);
+      if (solidFoodJson.success) setHistorySolidFoods(solidFoodJson.data);
     } catch { /* silent */ } finally { setHistoryLoading(false); }
   };
 
@@ -670,20 +737,25 @@ export default function Home() {
     setHistoryDays(days);
     setHistoryLoading(true);
     try {
-      const [feedRes, poopRes, medRes, awakeRes] = await Promise.all([
+      const [feedRes, poopRes, medRes, awakeRes, solidFoodRes] = await Promise.all([
         fetch(`/api/rooms/${room.id}/feeds?days=${days}`),
         fetch(`/api/rooms/${room.id}/poops?days=${days}`),
         fetch(`/api/rooms/${room.id}/medications?days=${days}`),
         fetch(`/api/rooms/${room.id}/awakes?days=${days}`),
+        fetch(`/api/rooms/${room.id}/solid-foods?days=${days}`),
       ]);
-      const feedJson = await feedRes.json();
-      const poopJson = await poopRes.json();
-      const medJson = await medRes.json();
-      const awakeJson = await awakeRes.json();
+      const [feedJson, poopJson, medJson, awakeJson, solidFoodJson] = await Promise.all([
+        feedRes.json(),
+        poopRes.json(),
+        medRes.json(),
+        awakeRes.json(),
+        solidFoodRes.json(),
+      ]);
       if (feedJson.success) setHistoryFeeds(feedJson.data);
       if (poopJson.success) setHistoryPoops(poopJson.data);
       if (medJson.success) setHistoryMedications(medJson.data);
       if (awakeJson.success) setHistoryAwakes(awakeJson.data);
+      if (solidFoodJson.success) setHistorySolidFoods(solidFoodJson.data);
     } catch { /* silent */ } finally { setHistoryLoading(false); }
   };
 
@@ -785,6 +857,7 @@ export default function Home() {
   const lastFeedElapsed = room.lastFeed ? getElapsedDisplay(room.lastFeed.started_at) : null;
   const todayTotalMl = room.feeds.reduce((sum, f) => sum + (f.amount_ml || 0), 0);
   const todayCount = room.feeds.length;
+  const todaySolidFoodCount = room.solid_foods?.length || 0;
 
   return (
     <div className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
@@ -842,9 +915,9 @@ export default function Home() {
       </div>
 
       {/* Today Stats - thin bar */}
-      {(todayCount > 0 || (room.poops && room.poops.length > 0) || (room.medications && room.medications.length > 0) || (room.awakes && room.awakes.length > 0)) && (
+      {(todayCount > 0 || todaySolidFoodCount > 0 || (room.poops && room.poops.length > 0) || (room.medications && room.medications.length > 0) || (room.awakes && room.awakes.length > 0)) && (
         <div className="mx-5 mb-6 py-3 rounded-xl" style={{ backgroundColor: '#FFFCF8' }}>
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <div className="flex items-baseline gap-1">
               <span className="text-xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>{todayCount}</span>
               <span className="text-sm" style={{ color: '#A89888' }}>次</span>
@@ -854,6 +927,16 @@ export default function Home() {
               <span className="text-xl font-semibold tabular-nums" style={{ color: '#D4A76A' }}>{todayTotalMl}</span>
               <span className="text-sm" style={{ color: '#A89888' }}>ml</span>
             </div>
+            {todaySolidFoodCount > 0 ? (
+              <>
+                <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm" style={{ color: '#6F9B78' }}>辅食</span>
+                  <span className="text-xl font-semibold tabular-nums" style={{ color: '#6F9B78' }}>{todaySolidFoodCount}</span>
+                  <span className="text-sm" style={{ color: '#6F9B78' }}>次</span>
+                </div>
+              </>
+            ) : null}
             {room.poops && room.poops.length > 0 && (
               <>
                 <div className="w-px h-4" style={{ backgroundColor: '#EDE5DC' }} />
@@ -999,6 +1082,19 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* Solid food */}
+              <div data-btn-type="solid-food" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
+                <button
+                  onClick={() => { haptic('medium'); handleQuickAddSolidFood(); }}
+                  disabled={submitting}
+                  className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: '#6F9B78', width: 70, height: 70 }}
+                >
+                  <Utensils size={16} />
+                  <span className="text-[10px]">辅食</span>
+                </button>
+              </div>
+
               {/* Medication */}
               <div data-btn-type="med" className="snap-center flex-shrink-0 flex items-center justify-center" style={{ width: 140, height: 140 }}>
                 <button
@@ -1015,6 +1111,15 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      {showSolidFoodForm ? (
+        <SolidFoodForm
+          recorderName={feederName}
+          submitting={submitting}
+          onClose={() => setShowSolidFoodForm(false)}
+          onSubmit={handleSubmitSolidFood}
+        />
+      ) : null}
 
       {/* Active awake duration */}
       {room.activeAwake && (
@@ -1394,8 +1499,9 @@ export default function Home() {
           const feedItems = room.feeds.map(f => ({ ...f, _type: 'feed' as const }));
           const poopItems = (room.poops || []).map(p => ({ ...p, _type: 'poop' as const }));
           const medItems = (room.medications || []).map(m => ({ ...m, _type: 'med' as const }));
+          const solidFoodItems = (room.solid_foods || []).map(s => ({ ...s, _type: 'solid-food' as const }));
           const awakeItems = (room.awakes || []).map(a => ({ ...a, _type: 'awake' as const }));
-          const allItems = [...feedItems, ...poopItems, ...medItems, ...awakeItems].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+          const allItems = [...feedItems, ...poopItems, ...medItems, ...solidFoodItems, ...awakeItems].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
           // Calculate feed intervals: map feed id -> interval string from previous feed
           const feedIntervalMap = new Map<string, string>();
           const allSortedFeeds = [...historyFeeds, ...room.feeds].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
@@ -1479,6 +1585,10 @@ export default function Home() {
                         </span>
                       </div>
                     </SwipeToDelete>
+                  ) : item._type === 'solid-food' ? (
+                    <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
+                      <SolidFoodRecordRow record={item} />
+                    </SwipeToDelete>
                   ) : (
                     <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
                       <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
@@ -1546,15 +1656,16 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto px-5 pb-8">
             {historyLoading ? (
               <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>加载中</p>
-            ) : (historyFeeds.length === 0 && historyPoops.length === 0 && historyMedications.length === 0 && historyAwakes.length === 0) ? (
+            ) : (historyFeeds.length === 0 && historyPoops.length === 0 && historyMedications.length === 0 && historyAwakes.length === 0 && historySolidFoods.length === 0) ? (
               <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>没有记录</p>
             ) : (
               (() => {
-                type CombinedItem = (FeedRecord & { _type: 'feed' }) | (PoopRecord & { _type: 'poop' }) | (MedicationRecord & { _type: 'med' }) | (AwakeRecord & { _type: 'awake' });
+                type CombinedItem = (FeedRecord & { _type: 'feed' }) | (PoopRecord & { _type: 'poop' }) | (MedicationRecord & { _type: 'med' }) | (SolidFoodRecord & { _type: 'solid-food' }) | (AwakeRecord & { _type: 'awake' });
                 const allItems: CombinedItem[] = [
                   ...historyFeeds.map(f => ({ ...f, _type: 'feed' as const })),
                   ...historyPoops.map(p => ({ ...p, _type: 'poop' as const })),
                   ...historyMedications.map(m => ({ ...m, _type: 'med' as const })),
+                  ...historySolidFoods.map(s => ({ ...s, _type: 'solid-food' as const })),
                   ...historyAwakes.map(a => ({ ...a, _type: 'awake' as const })),
                 ].sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
 
@@ -1600,6 +1711,7 @@ export default function Home() {
                   const feedItems = items.filter((i): i is FeedRecord & { _type: 'feed' } => i._type === 'feed');
                   const poopItems = items.filter(i => i._type === 'poop');
                   const medItems = items.filter(i => i._type === 'med');
+                  const solidFoodItems = items.filter(i => i._type === 'solid-food');
                   const awakeItems = items.filter((i): i is AwakeRecord & { _type: 'awake' } => i._type === 'awake');
                   const totalMl = feedItems.reduce((s, f) => s + (f.amount_ml || 0), 0);
                   const awakeMin = awakeItems.reduce((s, a) => {
@@ -1607,7 +1719,7 @@ export default function Home() {
                     return s + (new Date(a.ended_at).getTime() - new Date(a.started_at).getTime()) / 60000;
                   }, 0);
                   const awakeStr = awakeMin > 0 ? (awakeMin >= 60 ? `${Math.floor(awakeMin/60)}h${Math.round(awakeMin%60)}m` : `${Math.round(awakeMin)}m`) : '';
-                  const stats = `${feedItems.length}次 ${totalMl}ml${poopItems.length > 0 ? ` ${poopItems.length}便` : ''}${medItems.length > 0 ? ` ${medItems.length}药` : ''}${awakeStr ? ` ${awakeStr}醒` : ''}`;
+                  const stats = `${feedItems.length}次 ${totalMl}ml${poopItems.length > 0 ? ` ${poopItems.length}便` : ''}${medItems.length > 0 ? ` ${medItems.length}药` : ''}${solidFoodItems.length > 0 ? ` ${solidFoodItems.length}辅` : ''}${awakeStr ? ` ${awakeStr}醒` : ''}`;
                   return (
                     <div key={dateLabel} className="mb-5">
                       <div className="flex items-center justify-between mb-2">
@@ -1649,6 +1761,10 @@ export default function Home() {
                               {item.recorder_name && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>}
                               <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>{formatTime(item.started_at)}</span>
                             </div>
+                          </SwipeToDelete>
+                        ) : item._type === 'solid-food' ? (
+                          <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteSolidFood(item.id); }}>
+                            <SolidFoodRecordRow record={item} />
                           </SwipeToDelete>
                         ) : (
                           <SwipeToDelete key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
