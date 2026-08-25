@@ -236,6 +236,7 @@ export default function Home() {
   const [historySolidFoods, setHistorySolidFoods] = useState<SolidFoodRecord[]>([]);
   const [historyPoops, setHistoryPoops] = useState<PoopRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyDays, setHistoryDays] = useState(7);
 
   // Poop states
@@ -360,7 +361,11 @@ export default function Home() {
         setRoom(json.data);
       } else {
         requestState.setActiveRoomId(null);
+        requestState.setHistoryOpen(false);
         requestState.historyGate.invalidate();
+        setHistoryLoading(false);
+        setHistoryError(null);
+        setShowHistory(false);
         localStorage.removeItem('feedRoomId');
         setShowSetup(true);
         setRoom(null);
@@ -431,7 +436,10 @@ export default function Home() {
         requestState.roomGate.invalidate();
         requestState.historyGate.invalidate();
         requestState.setActiveRoomId(json.data.id);
+        requestState.setHistoryOpen(false);
         setHistoryLoading(false);
+        setHistoryError(null);
+        setShowHistory(false);
         localStorage.setItem('feedRoomId', json.data.id);
         setRoom({ ...json.data, feeds: [], poops: [], medications: [], awakes: [], solid_foods: [], lastFeed: null, activeAwake: null });
         setShowSetup(false);
@@ -447,7 +455,10 @@ export default function Home() {
       if (json.success) {
         requestState.historyGate.invalidate();
         requestState.setActiveRoomId(json.data.id);
+        requestState.setHistoryOpen(false);
         setHistoryLoading(false);
+        setHistoryError(null);
+        setShowHistory(false);
         localStorage.setItem('feedRoomId', json.data.id);
         fetchRoom(json.data.id);
         setShowSetup(false);
@@ -520,7 +531,9 @@ export default function Home() {
   };
 
   const loadHistorySnapshot = useCallback(async (roomId: string, days: number) => {
+    if (!requestState.matchesHistory(roomId, days)) return;
     const requestToken = requestState.historyGate.begin(`${roomId}:${days}`);
+    setHistoryError(null);
     setHistoryLoading(true);
     try {
       const snapshot = await fetchHistorySnapshot<
@@ -539,7 +552,12 @@ export default function Home() {
       setHistoryMedications(snapshot.medications);
       setHistoryAwakes(snapshot.awakes);
       setHistorySolidFoods(snapshot.solidFoods);
-    } catch { /* keep existing snapshot */ } finally {
+    } catch {
+      if (
+        requestState.historyGate.isLatest(requestToken)
+        && requestState.matchesHistory(roomId, days)
+      ) setHistoryError('加载失败，请重试');
+    } finally {
       if (
         requestState.historyGate.isLatest(requestToken)
         && requestState.matchesHistory(roomId, days)
@@ -549,10 +567,15 @@ export default function Home() {
 
   const handleDeleteSolidFood = async (solidFoodId: string) => {
     if (!room) return;
-    const refreshServerState = () => [
-      fetchRoom(room.id),
-      ...(showHistory ? [loadHistorySnapshot(room.id, historyDays)] : []),
-    ];
+    const deleteRoomId = room.id;
+    const refreshServerState = () => {
+      const context = requestState.getRefreshContext();
+      if (context.roomId !== deleteRoomId) return [];
+      return [
+        fetchRoom(context.roomId),
+        ...(context.showHistory ? [loadHistorySnapshot(context.roomId, context.days)] : []),
+      ];
+    };
 
     try {
       const res = await fetch(`/api/solid-foods/${solidFoodId}`, { method: 'DELETE' });
@@ -704,7 +727,9 @@ export default function Home() {
     requestState.roomGate.invalidate();
     requestState.historyGate.invalidate();
     requestState.setActiveRoomId(null);
+    requestState.setHistoryOpen(false);
     setHistoryLoading(false);
+    setHistoryError(null);
     setShowHistory(false);
     localStorage.removeItem('feedRoomId');
     setRoom(null);
@@ -713,9 +738,15 @@ export default function Home() {
 
   const handleOpenHistory = async () => {
     if (!room) return;
-    setShowHistory(true);
     requestState.setHistoryDays(historyDays);
+    requestState.setHistoryOpen(true);
+    setShowHistory(true);
     await loadHistorySnapshot(room.id, historyDays);
+  };
+
+  const handleCloseHistory = () => {
+    requestState.setHistoryOpen(false);
+    setShowHistory(false);
   };
 
   const handleHistoryDaysChange = async (days: number) => {
@@ -1602,7 +1633,7 @@ export default function Home() {
       {showHistory && (
         <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: '#FFF9F2' }}>
           <div className="flex items-center justify-between px-5 py-4">
-            <button onClick={() => { haptic('light'); setShowHistory(false); }} className="flex items-center gap-1 text-base" style={{ color: '#D4A76A' }}>
+            <button onClick={() => { haptic('light'); handleCloseHistory(); }} className="flex items-center gap-1 text-base" style={{ color: '#D4A76A' }}>
               <BackIcon size={18} color="#D4A76A" />
               返回
             </button>
@@ -1629,6 +1660,8 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto px-5 pb-8">
             {historyLoading ? (
               <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>加载中</p>
+            ) : historyError ? (
+              <p role="alert" className="text-center text-sm py-12" style={{ color: '#C96F5B' }}>{historyError}</p>
             ) : (historyFeeds.length === 0 && historyPoops.length === 0 && historyMedications.length === 0 && historyAwakes.length === 0 && historySolidFoods.length === 0) ? (
               <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>没有记录</p>
             ) : (

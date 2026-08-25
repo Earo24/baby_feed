@@ -75,6 +75,41 @@ test('matches history commits against the active room and requested day range', 
   assert.equal(state.matchesHistory('room-a', 30), false);
 });
 
+test('resolves deletion refresh context when the deletion finishes', async () => {
+  const { createRequestState } = await importRequestState();
+  const state = createRequestState(7);
+  const deletion = deferred<void>();
+  state.setActiveRoomId('room-a');
+  state.setHistoryOpen(true);
+
+  const contextAfterDeletion = (async () => {
+    await deletion.promise;
+    return state.getRefreshContext();
+  })();
+
+  state.setHistoryDays(30);
+  deletion.resolve();
+  assert.deepEqual(await contextAfterDeletion, {
+    roomId: 'room-a',
+    days: 30,
+    showHistory: true,
+  });
+
+  state.setHistoryOpen(false);
+  assert.deepEqual(state.getRefreshContext(), {
+    roomId: 'room-a',
+    days: 30,
+    showHistory: false,
+  });
+
+  state.setActiveRoomId(null);
+  assert.deepEqual(state.getRefreshContext(), {
+    roomId: null,
+    days: 30,
+    showHistory: false,
+  });
+});
+
 test('loads history as one complete five-type snapshot and rejects partial failures', async () => {
   const { fetchHistorySnapshot } = await importRequestState();
   const requestedUrls: string[] = [];

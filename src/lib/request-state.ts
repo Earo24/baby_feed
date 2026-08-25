@@ -31,12 +31,19 @@ export interface RequestState {
   historyGate: LatestRequestGate;
   setActiveRoomId: (roomId: string | null) => void;
   setHistoryDays: (days: number) => void;
+  setHistoryOpen: (showHistory: boolean) => void;
   matchesHistory: (roomId: string, days: number) => boolean;
+  getRefreshContext: () => {
+    roomId: string | null;
+    days: number;
+    showHistory: boolean;
+  };
 }
 
 export function createRequestState(initialHistoryDays: number): RequestState {
   let activeRoomId: string | null = null;
   let historyDays = initialHistoryDays;
+  let showHistory = false;
 
   return {
     roomGate: createLatestRequestGate(),
@@ -47,8 +54,14 @@ export function createRequestState(initialHistoryDays: number): RequestState {
     setHistoryDays(days) {
       historyDays = days;
     },
+    setHistoryOpen(nextShowHistory) {
+      showHistory = nextShowHistory;
+    },
     matchesHistory(roomId, days) {
       return activeRoomId === roomId && historyDays === days;
+    },
+    getRefreshContext() {
+      return { roomId: activeRoomId, days: historyDays, showHistory };
     },
   };
 }

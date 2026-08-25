@@ -17,3 +17,26 @@ test('uses one guarded five-type history snapshot loader for opening, range chan
   assert.match(pageSource, /loadHistorySnapshot\(room\.id, days\)/);
   assert.doesNotMatch(pageSource, /loadSolidFoodHistory/);
 });
+
+test('shows a history load error instead of rendering the previous range snapshot', () => {
+  const loadingBranch = pageSource.indexOf('{historyLoading ?');
+  const errorBranch = pageSource.indexOf(': historyError ?');
+  const emptyBranch = pageSource.indexOf('historyFeeds.length === 0');
+
+  assert.ok(loadingBranch >= 0);
+  assert.ok(errorBranch > loadingBranch);
+  assert.ok(emptyBranch > errorBranch);
+  assert.match(pageSource, /role="alert"/);
+  assert.match(pageSource, /加载失败，请重试/);
+});
+
+test('refreshes after deletion from the context current when deletion finishes', () => {
+  const handlerStart = pageSource.indexOf('const handleDeleteSolidFood');
+  const handlerEnd = pageSource.indexOf('const handleQuickAddPoop', handlerStart);
+  const handlerSource = pageSource.slice(handlerStart, handlerEnd);
+
+  assert.match(handlerSource, /requestState\.getRefreshContext\(\)/);
+  assert.match(handlerSource, /loadHistorySnapshot\(context\.roomId, context\.days\)/);
+  assert.doesNotMatch(handlerSource, /(?<!\.)\bshowHistory\b/);
+  assert.doesNotMatch(handlerSource, /(?<!\.)\bhistoryDays\b/);
+});
