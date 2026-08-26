@@ -6,18 +6,27 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Rectangle,
   XAxis,
   YAxis,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
 
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from '@/components/ui/chart';
 
 type Granularity = 'day' | 'week' | 'month';
+
+interface TrendEventCounts {
+  poop_count: number;
+  medication_count: number;
+  solid_food_count: number;
+  awake_count: number;
+  awake_minutes: number;
+}
 
 interface FeedTrendPoint {
   period_start: string;
@@ -25,6 +34,7 @@ interface FeedTrendPoint {
   total_ml: number;
   feed_count: number;
   measured_count: number;
+  events?: TrendEventCounts;
 }
 
 interface FeedStatsResponse {
@@ -55,6 +65,27 @@ const GRANULARITY_LABELS: Record<Granularity, string> = {
   month: '按月',
 };
 
+const EVENT_TYPES = [
+  { key: 'poop_count', label: '便便', color: '#B8A08A' },
+  { key: 'medication_count', label: '吃药', color: '#8B9EAF' },
+  { key: 'solid_food_count', label: '辅食', color: '#6F9B78' },
+  { key: 'awake_count', label: '清醒', color: '#7BAF8E' },
+] as const satisfies ReadonlyArray<{
+  key: keyof TrendEventCounts;
+  label: string;
+  color: string;
+}>;
+
+const EMPTY_EVENTS: TrendEventCounts = {
+  poop_count: 0,
+  medication_count: 0,
+  solid_food_count: 0,
+  awake_count: 0,
+  awake_minutes: 0,
+};
+
+const EVENT_PLOT_TOP = 8;
+
 const chartConfig = {
   volume: { label: '奶量', color: '#E3B87A' },
   feed_count: { label: '喂奶次数', color: '#A89888' },
@@ -63,10 +94,6 @@ const chartConfig = {
 
 function formatTooltipLabel(label: unknown): string {
   return typeof label === 'string' ? label : '';
-}
-
-function formatValue(value: unknown): string {
-  return typeof value === 'number' ? `${value} ml` : String(value ?? '');
 }
 
 function shouldShowXAxisLabel(
@@ -87,6 +114,78 @@ function shouldShowXAxisLabel(
   }
 
   return true;
+}
+
+type TrendBarShapeProps = {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+  payload?: FeedTrendPoint;
+};
+
+function TrendBarWithEvents({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  fill = '#E3B87A',
+  payload,
+}: TrendBarShapeProps) {
+  const events = payload?.events ?? EMPTY_EVENTS;
+  const centerX = x + width / 2;
+  const markerY = height > 0 ? Math.max(EVENT_PLOT_TOP, y - 10) : EVENT_PLOT_TOP;
+
+  return (
+    <g>
+      <Rectangle x={x} y={y} width={width} height={height} fill={fill} radius={[6, 6, 0, 0]} />
+      {EVENT_TYPES.map((event, index) => (
+        events[event.key] > 0 ? (
+          <circle
+            key={event.key}
+            cx={centerX + (index - 1.5) * 10}
+            cy={markerY}
+            r={3.5}
+            fill={event.color}
+            aria-label={`${event.label}${events[event.key]}次`}
+          />
+        ) : null
+      ))}
+    </g>
+  );
+}
+
+type TrendTooltipProps = Pick<TooltipProps<number, string>, 'active' | 'payload'>;
+
+function TrendTooltip({ active, payload }: TrendTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0].payload;
+  if (!point) return null;
+  const events = point.events ?? EMPTY_EVENTS;
+
+  return (
+    <div
+      className="min-w-44 rounded-lg border px-3 py-2 text-xs shadow-lg"
+      style={{ backgroundColor: '#FFFCF8', borderColor: '#EDE5DC', color: '#3D3229' }}
+    >
+      <p className="mb-1 font-medium">{point.label}</p>
+      <p>总奶量：{point.total_ml} ml</p>
+      <p>喂奶次数：{point.feed_count} 次</p>
+      {EVENT_TYPES.slice(0, 3).map((event) =>
+        events[event.key] > 0 ? (
+          <p key={event.key} style={{ color: event.color }}>
+            {event.label}：{events[event.key]} 次
+          </p>
+        ) : null,
+      )}
+      {events.awake_count > 0 || events.awake_minutes > 0 ? (
+        <p style={{ color: '#7BAF8E' }}>
+          清醒：{events.awake_count} 次 · {events.awake_minutes} 分钟
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolumeTrendProps) {
@@ -139,8 +238,16 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
     () => Math.max(0, ...points.map((point) => point.total_ml)),
     [points],
   );
-  const measuredCount = useMemo(
-    () => points.reduce((sum, point) => sum + point.measured_count, 0),
+  const hasMeasuredData = useMemo(
+    () => points.some((point) => {
+      const events = point.events ?? EMPTY_EVENTS;
+      return point.measured_count > 0
+        || events.poop_count > 0
+        || events.medication_count > 0
+        || events.solid_food_count > 0
+        || events.awake_count > 0
+        || events.awake_minutes > 0;
+    }),
     [points],
   );
   const retry = () => {
@@ -189,11 +296,11 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
             重试
           </button>
         </div>
-      ) : measuredCount === 0 ? (
+      ) : !hasMeasuredData ? (
         <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>暂无可统计奶量</p>
       ) : (
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
-          <BarChart data={points} margin={{ top: 8, right: 4, left: -16, bottom: 4 }}>
+          <BarChart data={points} margin={{ top: 56, right: 4, left: -16, bottom: 4 }}>
             <CartesianGrid vertical={false} stroke="#F1E5D8" />
             <XAxis
               dataKey="label"
@@ -215,26 +322,8 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
               tick={{ fill: '#A89888', fontSize: 10 }}
               tickFormatter={(value) => `${value}`}
             />
-            <ChartTooltip
-              cursor={{ fill: '#FFF3E6' }}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(label) => formatTooltipLabel(label)}
-                  formatter={(value, name) => {
-                    const labels: Record<string, string> = {
-                      volume: '总奶量',
-                      total_ml: '总奶量',
-                      feed_count: '喂奶次数',
-                      measured_count: '有奶量记录次数',
-                    };
-                    const key = String(name);
-                    const display = key === 'total_ml' || key === 'volume' ? formatValue(value) : `${value ?? 0} 次`;
-                    return [display, labels[key] || key];
-                  }}
-                />
-              }
-            />
-            <Bar dataKey="total_ml" name="volume" radius={[6, 6, 0, 0]}>
+            <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip />} />
+            <Bar dataKey="total_ml" name="volume" shape={<TrendBarWithEvents />}>
               {points.map((point) => (
                 <Cell
                   key={point.period_start}
@@ -247,6 +336,16 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
           </BarChart>
         </ChartContainer>
       )}
+      {!loading && !error && hasMeasuredData ? (
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: '#8F7968' }}>
+          {EVENT_TYPES.map((event) => (
+            <span key={event.key} className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: event.color }} aria-hidden="true" />
+              {event.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

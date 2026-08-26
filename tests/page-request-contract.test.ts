@@ -75,3 +75,22 @@ test('refreshes feed volume trend after feed mutations', () => {
   assert.match(pageSource.slice(addHandlerStart, addHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
   assert.match(pageSource.slice(deleteHandlerStart, deleteHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
 });
+
+test('declares the multi-record event labels and approved palette', () => {
+  assert.match(trendSource, /便便/);
+  assert.match(trendSource, /吃药/);
+  assert.match(trendSource, /辅食/);
+  assert.match(trendSource, /清醒/);
+  for (const color of ['#B8A08A', '#8B9EAF', '#6F9B78', '#7BAF8E', '#FFFCF8']) {
+    assert.match(trendSource, new RegExp(color.replace('#', '\\#')));
+  }
+});
+
+test('renders event markers and an explicit trend tooltip from event points', () => {
+  assert.match(trendSource, /EVENT_TYPES/);
+  assert.match(trendSource, /EventMarker|TrendBarWithEvents/);
+  assert.match(trendSource, /payload\[0\]\.payload/);
+  assert.match(trendSource, /total_ml/);
+  assert.match(trendSource, /awake_minutes/);
+  assert.match(trendSource, /fill=\{['"]#E3B87A['"]\}|#D9917A/);
+});
