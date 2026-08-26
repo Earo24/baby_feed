@@ -20,11 +20,13 @@ import { createFakeCommands } from './deploy-test-helpers';
 
 type FixtureOptions = {
   backupFinalizeFails?: boolean;
+  backupDeleteFailures?: number;
   backupKeep?: number;
   composeUpFailures?: number;
   dockerActive?: boolean;
   dockerImagesFails?: boolean;
   dockerRmiFails?: boolean;
+  findFails?: boolean;
   fixedTimestamp?: string;
   healthSequence?: string[];
   httpHealthy?: boolean;
@@ -70,11 +72,13 @@ function createFixture(options: FixtureOptions = {}) {
     DEPLOY_DIR: root,
     DEPLOY_TEST_LOG: logFile,
     FAKE_BACKUP_FINALIZE_FAIL: options.backupFinalizeFails ? '1' : '0',
+    FAKE_BACKUP_DELETE_FAILURES: options.backupDeleteFailures ? String(options.backupDeleteFailures) : '0',
     BACKUP_KEEP: options.backupKeep ? String(options.backupKeep) : '10',
     FAKE_COMPOSE_UP_FAILURES: options.composeUpFailures ? String(options.composeUpFailures) : '0',
     FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
     FAKE_DOCKER_IMAGES_FAIL: options.dockerImagesFails ? '1' : '0',
     FAKE_DOCKER_RMI_FAIL: options.dockerRmiFails ? '1' : '0',
+    FAKE_FIND_FAIL: options.findFails ? '1' : '0',
     FAKE_HEALTH_SEQUENCE: options.healthSequence?.join(',') ?? '',
     FAKE_HTTP_HEALTH: options.httpHealthy === false ? '0' : '1',
     IMAGE_KEEP: options.imageKeep ? String(options.imageKeep) : '3',
@@ -551,4 +555,33 @@ test('image removal failure warns without failing a healthy rollback', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /warning: could not remove old image baby-feed:3333333/);
   assert.equal(fixture.commandLog().includes('docker|system prune'), false);
+});
+
+test('backup retention warns when an early deletion fails but later deletions succeed', () => {
+  const fixture = createFixture({
+    systemdActive: false,
+    backupDeleteFailures: 1,
+    backupKeep: 1,
+    httpHealthy: true,
+  });
+  fixture.createBackups([
+    '20260820T010101Z-old',
+    '20260821T010101Z-old',
+    '20260822T010101Z-old',
+  ]);
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /warning: could not remove old data backups/);
+  assert.equal(fixture.validBackupCount(), 2);
+  assert.equal(fixture.commandLog().includes('docker|system prune'), false);
+});
+
+test('backup retention warns when backup listing fails without failing a healthy rollback', () => {
+  const fixture = createFixture({ systemdActive: false, findFails: true, httpHealthy: true });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /warning: could not list data backups for retention/);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
 });

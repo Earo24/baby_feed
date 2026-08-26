@@ -327,16 +327,27 @@ restore_previous_application() {
 
 cleanup_backups() {
   local -a backups=()
-  local remove_count index backup name
+  local remove_count index backup name backup_list_file cleanup_failed=0
+  if ! new_stable_temp_file backup_list_file cleanup-backups; then
+    return 1
+  fi
+  if ! find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -print | sort >"$backup_list_file"; then
+    return 2
+  fi
   while IFS= read -r backup; do
     name="${backup##*/}"
-    [[ "$name" =~ ^20[0-9]{6}T[0-9]{6}Z-[A-Za-z0-9._-]+$ ]] && backups+=("$backup")
-  done < <(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -print | sort)
+    if [[ "$name" =~ ^20[0-9]{6}T[0-9]{6}Z-[A-Za-z0-9._-]+$ ]]; then
+      backups+=("$backup")
+    fi
+  done <"$backup_list_file"
   remove_count=$((${#backups[@]} - BACKUP_KEEP))
   (( remove_count > 0 )) || return 0
   for ((index = 0; index < remove_count; index += 1)); do
-    rm -rf -- "${backups[$index]}"
+    if ! rm -rf -- "${backups[$index]}"; then
+      cleanup_failed=1
+    fi
   done
+  return "$cleanup_failed"
 }
 
 cleanup_images() {
@@ -370,8 +381,15 @@ cleanup_images() {
 }
 
 cleanup_release_artifacts() {
-  cleanup_backups || log 'warning: could not remove old data backups'
+  local backup_status=0
+  cleanup_backups || backup_status=$?
+  if (( backup_status == 2 )); then
+    log 'warning: could not list data backups for retention'
+  elif (( backup_status != 0 )); then
+    log 'warning: could not remove old data backups'
+  fi
   cleanup_images || log 'warning: could not remove old Docker images'
+  return 0
 }
 
 rollback_release() {

@@ -57,6 +57,21 @@ case "$name:$1" in
     [[ "\${FAKE_DOCKER_RMI_FAIL:-0}" != 1 ]] || exit 1
     :
     ;;
+  find:*)
+    [[ "\${FAKE_FIND_FAIL:-0}" != 1 ]] || exit 1
+    exec /usr/bin/find "$@"
+    ;;
+  rm:*)
+    if [[ "\${FAKE_BACKUP_DELETE_FAILURES:-0}" =~ ^[1-9][0-9]*$ && "$*" == *"/backups/"* ]]; then
+      counter_file="\${FAKE_STATE_DIR:-/tmp}/fake-backup-rm-count"
+      if [[ -f "$counter_file" ]]; then count="$(<"$counter_file")"; else count=0; fi
+      if (( count < FAKE_BACKUP_DELETE_FAILURES )); then
+        printf '%s\n' "$((count + 1))" >"$counter_file"
+        exit 1
+      fi
+    fi
+    exec /bin/rm "$@"
+    ;;
   systemctl:is-active) [[ "\${FAKE_SYSTEMD_ACTIVE:-1}" == 1 ]];;
   systemctl:stop) [[ "\${FAKE_STOP_FAIL:-0}" != 1 ]];;
   systemctl:*) :;;
@@ -94,6 +109,8 @@ export const fakeCommandNames = [
   'tar',
   'mv',
   'date',
+  'find',
+  'rm',
 ];
 
 export function createFakeCommands(root: string): string {
