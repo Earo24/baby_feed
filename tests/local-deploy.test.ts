@@ -144,6 +144,7 @@ test('builds amd64 by Git SHA, uploads artifacts, and invokes remote deploy', ()
   assert.match(result.commandLog, /docker\|buildx build --platform linux\/amd64/);
   assert.match(result.commandLog, /-t baby-feed:abcdef123456/);
   assert.match(result.commandLog, /scp\|.*image-abcdef123456\.tar\.gz/);
+  assert.match(result.commandLog, /scp\|.*abcdef123456-compose-release\.sh/);
   assert.match(result.commandLog, /ssh\|.* deploy baby-feed:abcdef123456/);
 
   const commands = result.commandLog.trim().split('\n');

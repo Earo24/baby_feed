@@ -137,10 +137,10 @@ deploy_release() {
   scp "${SCP_OPTIONS[@]}" "${PROJECT_ROOT}/deploy/compose.yaml" \
     "${DEPLOY_TARGET}:${remote_prefix}-compose.yaml"
   scp "${SCP_OPTIONS[@]}" "${PROJECT_ROOT}/deploy/remote-release.sh" \
-    "${DEPLOY_TARGET}:${remote_prefix}-release.sh"
+    "${DEPLOY_TARGET}:${remote_prefix}-compose-release.sh"
 
   local remote_script remote_image remote_archive remote_compose
-  remote_script="$(shell_quote "${remote_prefix}-release.sh")"
+  remote_script="$(shell_quote "${remote_prefix}-compose-release.sh")"
   remote_image="$(shell_quote "$image")"
   remote_archive="$(shell_quote "${remote_prefix}-image.tar.gz")"
   remote_compose="$(shell_quote "${remote_prefix}-compose.yaml")"
