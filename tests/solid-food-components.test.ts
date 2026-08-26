@@ -62,8 +62,17 @@ test('keeps the contextual delete action out of the closed-state tab order', () 
   assert.match(markup, /aria-hidden="true" class="pointer-events-none/);
 });
 
-test('keeps the solid-food drawer keyboard-safe', () => {
-  assert.match(solidFoodSource, /<Drawer\s+open[\s\S]*fixed\s*\n\s*repositionInputs/);
+test('keeps the solid-food modal keyboard-safe', () => {
+  assert.match(solidFoodSource, /className="fixed inset-0 z-50 flex items-end justify-center"/);
+  assert.match(solidFoodSource, /role="dialog"[\s\S]*aria-modal="true"/);
   assert.match(solidFoodSource, /FieldGroup className="[^\"]*min-h-0 flex-1[^\"]*overflow-y-auto[^\"]*pb-/);
-  assert.match(solidFoodSource, /<DrawerFooter className="[^\"]*shrink-0/);
+  assert.match(solidFoodSource, /className="[^\"]*mt-auto flex shrink-0 flex-col gap-2[^\"]*pb-\[calc\(1rem\+env\(safe-area-inset-bottom\)\)\]/);
+});
+
+test('opens the solid-food modal without taking focus or summoning the keyboard', () => {
+  assert.doesNotMatch(solidFoodSource, /autoFocus/);
+  assert.doesNotMatch(solidFoodSource, /repositionInputs/);
+  assert.match(solidFoodSource, /className="fixed inset-0 z-50 flex items-end justify-center"/);
+  assert.match(solidFoodSource, /className="[^\"]*rounded-t-2xl[^\"]*"/);
+  assert.match(solidFoodSource, /onClick=\{\(event\) => event\.stopPropagation\(\)\}/);
 });

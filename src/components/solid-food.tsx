@@ -4,15 +4,6 @@ import { useState, type FormEvent } from 'react';
 import { Utensils, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -180,41 +171,43 @@ export function SolidFoodForm({
   }
 
   return (
-    <Drawer
-      open
-      fixed
-      repositionInputs
-      onOpenChange={(open) => {
-        if (!open && !submitting) onClose();
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+      onClick={() => {
+        if (!submitting) onClose();
       }}
     >
-      <DrawerContent
-        className="mx-auto max-h-[90dvh] w-full max-w-md overflow-hidden"
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="solid-food-title"
+        className="mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl"
         style={{ backgroundColor: '#FFF9F2', borderColor: '#EDE5DC' }}
+        onClick={(event) => event.stopPropagation()}
       >
-        <DrawerHeader className="relative shrink-0 flex-row items-start justify-between gap-4 px-5 pb-3 pt-2 text-left">
+        <div className="relative flex shrink-0 flex-row items-start justify-between gap-4 px-5 pb-3 pt-2 text-left">
           <div className="min-w-0">
-            <DrawerTitle className="text-base" style={{ color: '#3D3229' }}>
+            <h2 id="solid-food-title" className="text-base" style={{ color: '#3D3229' }}>
               记录辅食
-            </DrawerTitle>
-            <DrawerDescription className="sr-only">
+            </h2>
+            <p className="sr-only">
               填写食物、分量和记录时间
-            </DrawerDescription>
+            </p>
           </div>
-          <DrawerClose asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-              style={{ color: '#8B7E74' }}
-              aria-label="关闭辅食记录"
-              disabled={submitting}
-            >
-              <X data-icon="inline-start" />
-            </Button>
-          </DrawerClose>
-        </DrawerHeader>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            style={{ color: '#8B7E74' }}
+            aria-label="关闭辅食记录"
+            disabled={submitting}
+            onClick={onClose}
+          >
+            <X data-icon="inline-start" />
+          </Button>
+        </div>
 
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit} noValidate>
           <FieldGroup className="min-h-0 flex-1 gap-5 overflow-y-auto px-5 pb-5 pt-2">
@@ -228,7 +221,6 @@ export function SolidFoodForm({
                 onChange={(event) => setFoodName(event.target.value)}
                 placeholder="如：米糊、南瓜泥"
                 required
-                autoFocus
                 maxLength={80}
                 aria-invalid={nameInvalid}
                 className="h-12 px-4 text-base"
@@ -384,7 +376,7 @@ export function SolidFoodForm({
             {formError ? <FieldError style={{ color: '#E8836B' }}>{formError}</FieldError> : null}
           </FieldGroup>
 
-          <DrawerFooter className="shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+          <div className="mt-auto flex shrink-0 flex-col gap-2 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
             <Button
               type="submit"
               disabled={submitting}
@@ -394,9 +386,9 @@ export function SolidFoodForm({
               {submitting ? <Spinner data-icon="inline-start" /> : null}
               {submitting ? '保存中' : '确认'}
             </Button>
-          </DrawerFooter>
+          </div>
         </form>
-      </DrawerContent>
-    </Drawer>
+      </div>
+    </div>
   );
 }
