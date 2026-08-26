@@ -6,6 +6,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   Rectangle,
   XAxis,
   YAxis,
@@ -95,10 +97,39 @@ const chartConfig = {
 
 function formatXAxisLabel(granularity: Granularity, label: unknown): string {
   if (typeof label !== 'string') return '';
-  const match = label.match(/^(\d{1,2})月(\d{1,2})日$/);
-  if (!match) return label;
-  const [, month, day] = match;
-  return granularity === 'month' ? `${month}月` : `${month}/${day}`;
+
+  const monthDayMatch = label.match(/^(\d{1,2})月(\d{1,2})日$/);
+  if (monthDayMatch) {
+    const [, month, day] = monthDayMatch;
+    return granularity === 'month' ? `${month}月` : `${month}/${day}`;
+  }
+
+  const monthMatch = label.match(/^(?:\d{4}年)?(\d{1,2})月$/);
+  if (monthMatch) return `${monthMatch[1]}月`;
+
+  return label;
+}
+
+function shouldShowXAxisLabel(
+  granularity: Granularity,
+  index: number,
+  pointCount: number,
+): boolean {
+  const lastIndex = pointCount - 1;
+  if (index === lastIndex) return true;
+
+  if (granularity === 'day') {
+    const dayLabelStep = 5;
+    return index % dayLabelStep === 0;
+  }
+
+  if (granularity === 'week') {
+    const weekLabelStep = 2;
+    return index % weekLabelStep === 0;
+  }
+
+  const monthLabelStep = 2;
+  return index % monthLabelStep === 0;
 }
 
 type TrendBarShapeProps = {
@@ -132,6 +163,34 @@ function TrendBarWithEvents({
             cx={centerX + (index - 1.5) * 10}
             cy={markerY}
             r={3.5}
+            fill={event.color}
+            aria-label={`${event.label}${events[event.key]}次`}
+          />
+        ) : null
+      ))}
+    </g>
+  );
+}
+
+type TrendLineDotProps = {
+  cx?: number;
+  cy?: number;
+  payload?: FeedTrendPoint;
+};
+
+function TrendLineDot({ cx = 0, cy = 0, payload }: TrendLineDotProps) {
+  const events = payload?.events ?? EMPTY_EVENTS;
+
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={4} fill="#D9917A" stroke="#FFFCF8" strokeWidth={2} />
+      {EVENT_TYPES.map((event, index) => (
+        events[event.key] > 0 ? (
+          <circle
+            key={event.key}
+            cx={cx + (index - 1.5) * 8}
+            cy={cy - 10}
+            r={3}
             fill={event.color}
             aria-label={`${event.label}${events[event.key]}次`}
           />
@@ -286,46 +345,97 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
         <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>暂无可统计奶量</p>
       ) : (
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
-          <BarChart
-            data={points}
-            margin={{
-              top: SHARED_CHART_TOP_MARGIN,
-              right: 20,
-              left: -16,
-              bottom: granularity === 'day' ? 32 : 4,
-            }}
-          >
-            <CartesianGrid vertical={false} stroke="#F1E5D8" />
-            <XAxis
-              dataKey="label"
-              axisLine={false}
-              tickLine={false}
-              interval={0}
-              height={granularity === 'day' ? 64 : 24}
-              angle={granularity === 'day' ? -90 : 0}
-              textAnchor={granularity === 'day' ? 'end' : 'middle'}
-              tickFormatter={(value) => formatXAxisLabel(granularity, value)}
-              tick={{ fill: '#A89888', fontSize: granularity === 'day' ? 8 : 10 }}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              width={42}
-              tick={{ fill: '#A89888', fontSize: 10 }}
-              tickFormatter={(value) => `${value}`}
-            />
-            <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip />} />
-            <Bar dataKey="total_ml" name="volume" shape={<TrendBarWithEvents />}>
-              {points.map((point) => (
-                <Cell
-                  key={point.period_start}
-                  fill={point.total_ml > 0 && point.total_ml === maxTotalMl ? '#D9917A' : '#E3B87A'}
-                />
-              ))}
-            </Bar>
-            <Bar dataKey="feed_count" name="feed_count" fill="transparent" barSize={0} />
-            <Bar dataKey="measured_count" name="measured_count" fill="transparent" barSize={0} />
-          </BarChart>
+          {granularity === 'day' ? (
+            <LineChart
+              data={points}
+              margin={{
+                top: SHARED_CHART_TOP_MARGIN,
+                right: 20,
+                left: -16,
+                bottom: 24,
+              }}
+            >
+              <CartesianGrid vertical={false} stroke="#F1E5D8" />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+                height={40}
+                angle={-25}
+                textAnchor="end"
+                tickFormatter={(value, index) => (
+                  shouldShowXAxisLabel(granularity, index, points.length)
+                    ? formatXAxisLabel(granularity, value)
+                    : ''
+                )}
+                tick={{ fill: '#A89888', fontSize: 9 }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                width={42}
+                tick={{ fill: '#A89888', fontSize: 10 }}
+                tickFormatter={(value) => `${value}`}
+              />
+              <ChartTooltip cursor={{ stroke: '#D9917A', strokeDasharray: '4 4' }} content={<TrendTooltip />} />
+              <Line
+                dataKey="total_ml"
+                name="volume"
+                type="monotone"
+                stroke="#D9917A"
+                strokeWidth={2.5}
+                dot={<TrendLineDot />}
+                activeDot={{ r: 5, fill: '#D9917A', stroke: '#FFFCF8', strokeWidth: 2 }}
+                connectNulls
+              />
+              <Line dataKey="feed_count" name="feed_count" stroke="transparent" dot={false} />
+              <Line dataKey="measured_count" name="measured_count" stroke="transparent" dot={false} />
+            </LineChart>
+          ) : (
+            <BarChart
+              data={points}
+              margin={{
+                top: SHARED_CHART_TOP_MARGIN,
+                right: 20,
+                left: -16,
+                bottom: 4,
+              }}
+            >
+              <CartesianGrid vertical={false} stroke="#F1E5D8" />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+                height={24}
+                tickFormatter={(value, index) => (
+                  shouldShowXAxisLabel(granularity, index, points.length)
+                    ? formatXAxisLabel(granularity, value)
+                    : ''
+                )}
+                tick={{ fill: '#A89888', fontSize: 10 }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                width={42}
+                tick={{ fill: '#A89888', fontSize: 10 }}
+                tickFormatter={(value) => `${value}`}
+              />
+              <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip />} />
+              <Bar dataKey="total_ml" name="volume" shape={<TrendBarWithEvents />}>
+                {points.map((point) => (
+                  <Cell
+                    key={point.period_start}
+                    fill={point.total_ml > 0 && point.total_ml === maxTotalMl ? '#D9917A' : '#E3B87A'}
+                  />
+                ))}
+              </Bar>
+              <Bar dataKey="feed_count" name="feed_count" fill="transparent" barSize={0} />
+              <Bar dataKey="measured_count" name="measured_count" fill="transparent" barSize={0} />
+            </BarChart>
+          )}
         </ChartContainer>
       )}
       {!loading && !error && hasMeasuredData ? (

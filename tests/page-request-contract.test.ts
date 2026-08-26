@@ -53,15 +53,21 @@ test('feed volume trend component exposes the three granularity controls and sta
 test('uses a 30-day daily trend range with evenly spaced mobile-safe labels', () => {
   assert.match(trendSource, /day: 30/);
   assert.match(trendSource, /function formatXAxisLabel/);
+  assert.match(trendSource, /function shouldShowXAxisLabel/);
+  assert.match(trendSource, /dayLabelStep = 5/);
+  assert.match(trendSource, /monthLabelStep = 2/);
   assert.match(trendSource, /granularity === 'day'/);
   assert.match(trendSource, /`\$\{month\}\/\$\{day\}`/);
-  assert.match(trendSource, /angle=\{granularity === 'day' \? -90 : 0\}/);
   assert.match(trendSource, /interval=\{0\}/);
 });
 
 test('samples long trend axis labels without dropping trend data points', () => {
-  assert.match(trendSource, /tickFormatter=\{\(value\) => formatXAxisLabel\(granularity, value\)\}/);
+  assert.match(trendSource, /tickFormatter=\{\(value, index\) => \(/);
+  assert.match(trendSource, /shouldShowXAxisLabel\(granularity, index, points\.length\)/);
+  assert.match(trendSource, /formatXAxisLabel\(granularity, value\)/);
   assert.match(trendSource, /<BarChart[\s\S]*data=\{points\}/);
+  assert.match(trendSource, /<LineChart[\s\S]*data=\{points\}/);
+  assert.match(trendSource, /<Line[\s\S]*dataKey="total_ml"/);
 });
 
 test('renders feed volume trend inside the guarded history overlay', () => {
