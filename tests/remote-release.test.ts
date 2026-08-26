@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { gzipSync } from 'node:zlib';
@@ -17,7 +19,11 @@ import { afterEach, test } from 'node:test';
 import { createFakeCommands } from './deploy-test-helpers';
 
 type FixtureOptions = {
+  backupFinalizeFails?: boolean;
+  dockerActive?: boolean;
+  fixedTimestamp?: string;
   httpHealthy?: boolean;
+  stopFails?: boolean;
   systemdActive?: boolean;
   tarFails?: boolean;
 };
@@ -42,34 +48,50 @@ function createFixture(options: FixtureOptions = {}) {
   writeFileSync(path.join(dataDirectory, 'baby-feed.sqlite'), 'sqlite-main');
   writeFileSync(path.join(dataDirectory, 'baby-feed.sqlite-wal'), 'sqlite-wal');
 
-  const archive = path.join(root, 'baby-feed-image.tar.gz');
-  const compose = path.join(root, 'compose-source.yaml');
+  const incomingDirectory = path.join(root, 'incoming');
+  const archive = path.join(incomingDirectory, 'baby-feed-image.tar.gz');
+  const compose = path.join(incomingDirectory, 'compose-source.yaml');
   const logFile = path.join(root, 'commands.log');
   writeFileSync(archive, gzipSync('fake docker image archive'));
   writeFileSync(compose, 'services:\n  app:\n    image: ${BABY_FEED_IMAGE}\n');
   writeFileSync(logFile, '');
 
   const fakeBin = createFakeCommands(root);
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     APP_PORT: '19001',
     DEPLOY_DIR: root,
     DEPLOY_TEST_LOG: logFile,
+    FAKE_BACKUP_FINALIZE_FAIL: options.backupFinalizeFails ? '1' : '0',
+    FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
     FAKE_HTTP_HEALTH: options.httpHealthy === false ? '0' : '1',
+    FAKE_RUNNING_IMAGE: '',
+    FAKE_STOP_FAIL: options.stopFails ? '1' : '0',
     FAKE_SYSTEMD_ACTIVE: options.systemdActive === false ? '0' : '1',
     FAKE_TAR_FAIL: options.tarFails ? '1' : '0',
+    FAKE_TIMESTAMP: options.fixedTimestamp ?? '',
     HEALTH_TIMEOUT: '1',
     PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    STABLE_COMPOSE_FILE: path.join(root, 'deploy', 'compose.yaml'),
+    STABLE_RELEASE_ENV: path.join(root, 'deploy', 'release.env'),
   };
 
   return {
     archive,
     compose,
+    root,
     run(...args: string[]) {
       return spawnSync('bash', ['deploy/remote-release.sh', ...args], {
         cwd: process.cwd(),
         encoding: 'utf8',
         env,
+      });
+    },
+    runWithEnv(overrides: Partial<NodeJS.ProcessEnv>, ...args: string[]) {
+      return spawnSync('bash', ['deploy/remote-release.sh', ...args], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: { ...env, ...overrides },
       });
     },
     commandLog() {
@@ -104,6 +126,50 @@ function createFixture(options: FixtureOptions = {}) {
         .find((line) => line.startsWith(`${key}=`))
         ?.slice(key.length + 1);
     },
+    expectStableImageDuringHealth(image: string) {
+      env.EXPECT_STABLE_IMAGE_DURING_HEALTH = image;
+      env.EXPECT_STABLE_COMPOSE_MARKER = `# stable ${image}`;
+    },
+    setDockerActive(active: boolean) {
+      env.FAKE_DOCKER_ACTIVE = active ? '1' : '0';
+    },
+    setRunningImage(image: string) {
+      env.FAKE_RUNNING_IMAGE = image;
+    },
+    writeReleaseState(current: string, previous: string) {
+      writeFileSync(
+        path.join(root, 'deploy', 'release.env'),
+        [
+          `BABY_FEED_IMAGE=${current}`,
+          `CURRENT_IMAGE=${current}`,
+          `PREVIOUS_IMAGE=${previous}`,
+          'APP_PORT=19001',
+          `DATA_DIR=${dataDirectory}`,
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(
+        path.join(root, 'deploy', 'compose.yaml'),
+        `${readFileSync(compose, 'utf8')}# stable ${current}\n`,
+      );
+      env.FAKE_DOCKER_ACTIVE = '1';
+      env.FAKE_RUNNING_IMAGE = current;
+    },
+    createBackupCollision(timestamp: string, label = 'systemd') {
+      env.FAKE_TIMESTAMP = timestamp;
+      const destination = path.join(root, 'backups', `${timestamp}-${label}`);
+      mkdirSync(destination);
+      writeFileSync(path.join(destination, 'existing-marker'), 'keep');
+      return destination;
+    },
+    replaceDataWithExternalSymlink() {
+      const external = mkdtempSync(path.join(os.tmpdir(), 'baby-feed-external-data-'));
+      temporaryRoots.push(external);
+      writeFileSync(path.join(external, 'baby-feed.sqlite'), 'external-main');
+      rmSync(dataDirectory, { recursive: true });
+      symlinkSync(external, dataDirectory);
+      return external;
+    },
   };
 }
 
@@ -128,7 +194,178 @@ test('restarts systemd and leaves data untouched when backup fails', () => {
   const before = fixture.dataDigest();
   const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
   assert.notEqual(result.status, 0);
-  assert.match(fixture.commandLog(), /systemctl\|start baby-feed/);
-  assert.equal(fixture.commandLog().includes('docker|compose'), false);
+  const log = fixture.commandLog();
+  assert.match(log, /systemctl\|start baby-feed/);
+  assert.ok(log.indexOf('systemctl|is-active baby-feed', log.indexOf('systemctl|start baby-feed')) > 0);
+  assert.equal(log.includes('docker|compose'), false);
   assert.equal(fixture.dataDigest(), before);
+});
+
+test('fails closed when backup finalization fails after tar succeeds', () => {
+  const fixture = createFixture({ systemdActive: true, backupFinalizeFails: true });
+  const before = fixture.dataDigest();
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.match(fixture.commandLog(), /systemctl\|start baby-feed/);
+  assert.equal(fixture.commandLog().includes(' up -d'), false);
+  assert.equal(fixture.dataDigest(), before);
+  assert.equal(
+    readdirSync(path.join(fixture.root, 'backups')).some((name) => name.includes('.partial.')),
+    false,
+  );
+});
+
+test('refuses a colliding second-resolution backup destination', () => {
+  const fixture = createFixture({ systemdActive: true });
+  const destination = fixture.createBackupCollision('20260826T010203Z');
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(readFileSync(path.join(destination, 'existing-marker'), 'utf8'), 'keep');
+  assert.deepEqual(readdirSync(destination), ['existing-marker']);
+  assert.equal(fixture.commandLog().includes(' up -d'), false);
+});
+
+test('keeps stable release files on the prior image until candidate health succeeds', () => {
+  const fixture = createFixture({ systemdActive: false, dockerActive: true });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  fixture.expectStableImageDuringHealth('baby-feed:1111111');
+
+  const candidateCompose = readFileSync(fixture.compose, 'utf8');
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:2222222');
+  assert.equal(
+    readFileSync(path.join(fixture.root, 'deploy', 'compose.yaml'), 'utf8'),
+    candidateCompose,
+  );
+  assert.match(fixture.commandLog(), /docker\|compose .*candidate[^\n]* up -d --force-recreate app/);
+});
+
+test('refuses conflicting active systemd and Docker writers before downtime', () => {
+  const fixture = createFixture({ systemdActive: true, dockerActive: true });
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.commandLog().includes('systemctl|stop'), false);
+  assert.equal(fixture.commandLog().includes('tar|-'), false);
+});
+
+test('does not infer a running Docker app from stale release files', () => {
+  const fixture = createFixture({ systemdActive: false, dockerActive: false });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  fixture.setDockerActive(false);
+
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.commandLog().includes('docker|compose'), false);
+  assert.equal(fixture.commandLog().includes('systemctl|start'), false);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+});
+
+test('refuses a running Docker image that conflicts with stable release state', () => {
+  const fixture = createFixture({ systemdActive: false, dockerActive: true });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  fixture.setRunningImage('baby-feed:9999999');
+
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.commandLog().includes(' stop app'), false);
+  assert.equal(fixture.commandLog().includes('tar|-'), false);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+});
+
+test('does not start an inactive systemd service when no writer was active', () => {
+  const fixture = createFixture({ systemdActive: false, dockerActive: false });
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.commandLog().includes('systemctl|start'), false);
+  assert.equal(fixture.commandLog().includes('tar|-'), false);
+});
+
+test('preserves the active writer and does not back up when stopping it fails', () => {
+  const fixture = createFixture({ systemdActive: true, stopFails: true });
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+  const log = fixture.commandLog();
+  const activeCheck = log.indexOf('systemctl|is-active baby-feed');
+  const stop = log.indexOf('systemctl|stop baby-feed');
+
+  assert.notEqual(result.status, 0);
+  assert.ok(activeCheck >= 0);
+  assert.ok(activeCheck < stop);
+  assert.equal(log.includes('tar|-'), false);
+  assert.equal(log.includes('docker|compose'), false);
+});
+
+test('rejects a deployment path containing traversal before creating directories', () => {
+  const fixture = createFixture();
+  const traversal = `${fixture.root}/nested/../unsafe`;
+
+  const result = fixture.runWithEnv({ DEPLOY_DIR: traversal }, 'prepare-upload');
+
+  assert.notEqual(result.status, 0);
+  assert.equal(existsSync(path.join(fixture.root, 'unsafe')), false);
+});
+
+test('rejects a data symlink that resolves outside the deployment root before chown', () => {
+  const fixture = createFixture({ systemdActive: true });
+  const external = fixture.replaceDataWithExternalSymlink();
+  const before = readFileSync(path.join(external, 'baby-feed.sqlite'), 'utf8');
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.commandLog().includes('chown|-R'), false);
+  assert.equal(readFileSync(path.join(external, 'baby-feed.sqlite'), 'utf8'), before);
+});
+
+test('rejects artifacts outside incoming without deleting them', () => {
+  const fixture = createFixture({ systemdActive: true });
+  const externalArchive = path.join(fixture.root, 'outside-image.tar.gz');
+  writeFileSync(externalArchive, gzipSync('external fake image'));
+
+  const result = fixture.run(
+    'deploy',
+    'baby-feed:abcdef123456',
+    externalArchive,
+    fixture.compose,
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.equal(existsSync(externalArchive), true);
+  assert.equal(fixture.commandLog().includes('docker|load'), false);
+});
+
+test('rejects a symlinked incoming artifact without deleting the link or target', () => {
+  const fixture = createFixture({ systemdActive: true });
+  const target = path.join(fixture.root, 'outside-compose.yaml');
+  const link = path.join(fixture.root, 'incoming', 'compose-link.yaml');
+  writeFileSync(target, readFileSync(fixture.compose));
+  symlinkSync(target, link);
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, link);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(existsSync(link), true);
+  assert.equal(existsSync(target), true);
+  assert.equal(fixture.commandLog().includes('docker|load'), false);
+});
+
+test('bounds each HTTP health request by the remaining health timeout', () => {
+  const fixture = createFixture({ systemdActive: true, httpHealthy: true });
+
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(fixture.commandLog(), /curl\|--connect-timeout 1 --max-time 1 --fail/);
 });

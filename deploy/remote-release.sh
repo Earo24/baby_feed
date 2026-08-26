@@ -7,12 +7,17 @@ BACKUP_KEEP="${BACKUP_KEEP:-10}"
 IMAGE_KEEP="${IMAGE_KEEP:-3}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 SYSTEMD_SERVICE="${SYSTEMD_SERVICE:-baby-feed}"
-DATA_DIR="${DEPLOY_DIR}/data"
-STABLE_DIR="${DEPLOY_DIR}/deploy"
-BACKUP_DIR="${DEPLOY_DIR}/backups"
-INCOMING_DIR="${DEPLOY_DIR}/incoming"
-COMPOSE_FILE="${STABLE_DIR}/compose.yaml"
-RELEASE_ENV="${STABLE_DIR}/release.env"
+
+set_deploy_paths() {
+  DATA_DIR="${DEPLOY_DIR}/data"
+  STABLE_DIR="${DEPLOY_DIR}/deploy"
+  BACKUP_DIR="${DEPLOY_DIR}/backups"
+  INCOMING_DIR="${DEPLOY_DIR}/incoming"
+  COMPOSE_FILE="${STABLE_DIR}/compose.yaml"
+  RELEASE_ENV="${STABLE_DIR}/release.env"
+}
+
+set_deploy_paths
 
 die() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -32,30 +37,70 @@ TEMP_FILES=()
 cleanup_temp_files() {
   local filename
   for filename in "${TEMP_FILES[@]}"; do
-    [[ "$filename" == /tmp/* && -f "$filename" ]] && rm -f -- "$filename"
+    if [[ -f "$filename" && "$filename" == "$STABLE_DIR"/.* ]]; then
+      rm -f -- "$filename"
+    elif [[ -f "$filename" && "$filename" == /tmp/* ]]; then
+      rm -f -- "$filename"
+    fi
   done
   return 0
 }
 
 trap cleanup_temp_files EXIT
 
-new_temp_file() {
-  local variable_name="$1" filename
-  filename="$(mktemp)"
-  TEMP_FILES+=("$filename")
+register_temp_file() {
+  TEMP_FILES+=("$1")
+}
+
+new_stable_temp_file() {
+  local variable_name="$1" prefix="$2" filename
+  filename="$(mktemp "${STABLE_DIR}/.${prefix}.XXXXXX")"
+  register_temp_file "$filename"
   printf -v "$variable_name" '%s' "$filename"
 }
 
 validate_config() {
-  [[ "$DEPLOY_DIR" == /* && "$DEPLOY_DIR" != / ]] || die 'DEPLOY_DIR must be a specific absolute path'
+  local canonical managed resolved
+  command -v realpath >/dev/null || die 'realpath is required'
+  [[ "$DEPLOY_DIR" == /* ]] || die 'DEPLOY_DIR must be a specific absolute path'
+  [[ "$DEPLOY_DIR" != *$'\n'* ]] || die 'DEPLOY_DIR must not contain a newline'
+  case "/${DEPLOY_DIR#/}/" in
+    *"/../"* | *"/./"* | *"//"*) die 'DEPLOY_DIR must not contain traversal components' ;;
+  esac
+  canonical="$(realpath -m -- "$DEPLOY_DIR")" || die 'DEPLOY_DIR could not be canonicalized'
+  [[ "${canonical#/}" == */* ]] || die 'DEPLOY_DIR must be below a specific parent directory'
+  case "$canonical" in
+    / | /bin | /boot | /dev | /etc | /home | /lib | /lib64 | /opt | /proc | /root | /run | /sbin | /srv | /sys | /tmp | /usr | /usr/local | /var | /var/lib)
+      die 'DEPLOY_DIR resolves to an unsafe root'
+      ;;
+  esac
+  if [[ -e "$canonical" ]]; then
+    [[ -d "$canonical" && ! -L "$canonical" ]] || die 'DEPLOY_DIR must resolve to a real directory'
+  fi
+  DEPLOY_DIR="$canonical"
+  set_deploy_paths
+  for managed in "$DATA_DIR" "$STABLE_DIR" "$BACKUP_DIR" "$INCOMING_DIR"; do
+    resolved="$(realpath -m -- "$managed")" || die "managed path could not be canonicalized: ${managed}"
+    [[ "$resolved" == "$managed" ]] || die "managed path escapes its exact deployment location: ${managed}"
+  done
   require_uint APP_PORT "$APP_PORT"
   require_uint BACKUP_KEEP "$BACKUP_KEEP"
   require_uint IMAGE_KEEP "$IMAGE_KEEP"
   require_uint HEALTH_TIMEOUT "$HEALTH_TIMEOUT"
 }
 
-compose() {
-  docker compose --env-file "$RELEASE_ENV" -f "$COMPOSE_FILE" "$@"
+compose_with() {
+  local release_file="$1" compose_file="$2"
+  shift 2
+  docker compose --env-file "$release_file" -f "$compose_file" "$@"
+}
+
+stable_compose() {
+  compose_with "$RELEASE_ENV" "$COMPOSE_FILE" "$@"
+}
+
+candidate_compose() {
+  compose_with "$CANDIDATE_RELEASE_ENV" "$CANDIDATE_COMPOSE_FILE" "$@"
 }
 
 acquire_lock() {
@@ -70,52 +115,230 @@ release_value() {
   sed -n "s/^${key}=//p" "$file" | head -n 1
 }
 
-write_release_env() {
-  local current="$1" previous="$2" temporary
-  temporary="$(mktemp "${STABLE_DIR}/release.env.XXXXXX")"
+write_release_env_file() {
+  local destination="$1" current="$2" previous="$3"
   {
     printf 'BABY_FEED_IMAGE=%s\n' "$current"
     printf 'CURRENT_IMAGE=%s\n' "$current"
     printf 'PREVIOUS_IMAGE=%s\n' "$previous"
     printf 'APP_PORT=%s\n' "$APP_PORT"
     printf 'DATA_DIR=%s\n' "$DATA_DIR"
-  } > "$temporary"
-  mv "$temporary" "$RELEASE_ENV"
+  } > "$destination"
+}
+
+atomic_install() {
+  local source="$1" destination="$2" mode="$3" temporary
+  temporary="$(mktemp "${STABLE_DIR}/.promote.XXXXXX")" || return 1
+  register_temp_file "$temporary"
+  if ! install -m "$mode" "$source" "$temporary"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  if ! mv -f -- "$temporary" "$destination"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+snapshot_stable_state() {
+  OLD_RELEASE_EXISTS=0
+  OLD_COMPOSE_EXISTS=0
+  new_stable_temp_file OLD_RELEASE_COPY snapshot-release
+  new_stable_temp_file OLD_COMPOSE_COPY snapshot-compose
+  if [[ -e "$RELEASE_ENV" || -L "$RELEASE_ENV" ]]; then
+    [[ -f "$RELEASE_ENV" && ! -L "$RELEASE_ENV" ]] || die 'stable release.env must be a regular file'
+    cp "$RELEASE_ENV" "$OLD_RELEASE_COPY"
+    OLD_RELEASE_EXISTS=1
+  fi
+  if [[ -e "$COMPOSE_FILE" || -L "$COMPOSE_FILE" ]]; then
+    [[ -f "$COMPOSE_FILE" && ! -L "$COMPOSE_FILE" ]] || die 'stable compose.yaml must be a regular file'
+    cp "$COMPOSE_FILE" "$OLD_COMPOSE_COPY"
+    OLD_COMPOSE_EXISTS=1
+  fi
+}
+
+restore_stable_state() {
+  if [[ "$OLD_COMPOSE_EXISTS" == 1 ]]; then
+    atomic_install "$OLD_COMPOSE_COPY" "$COMPOSE_FILE" 0644 || return 1
+  else
+    rm -f -- "$COMPOSE_FILE" || return 1
+  fi
+  if [[ "$OLD_RELEASE_EXISTS" == 1 ]]; then
+    atomic_install "$OLD_RELEASE_COPY" "$RELEASE_ENV" 0600 || return 1
+  else
+    rm -f -- "$RELEASE_ENV" || return 1
+  fi
+}
+
+stage_candidate_state() {
+  local new_image="$1" old_image="$2" compose_source="$3"
+  new_stable_temp_file CANDIDATE_COMPOSE_FILE candidate-compose
+  new_stable_temp_file CANDIDATE_RELEASE_ENV candidate-release
+  install -m 0644 "$compose_source" "$CANDIDATE_COMPOSE_FILE"
+  write_release_env_file "$CANDIDATE_RELEASE_ENV" "$new_image" "$old_image"
+}
+
+promote_candidate_state() {
+  atomic_install "$CANDIDATE_COMPOSE_FILE" "$COMPOSE_FILE" 0644 || return 1
+  atomic_install "$CANDIDATE_RELEASE_ENV" "$RELEASE_ENV" 0600 || return 1
+}
+
+cleanup_partial_backup() {
+  local partial="$1"
+  [[ "$partial" == "$BACKUP_DIR"/*.partial.* ]] || return 1
+  rm -rf -- "$partial"
 }
 
 backup_data() {
   local old_label="$1" timestamp destination partial
-  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)" || return 1
   old_label="${old_label#baby-feed:}"
   old_label="${old_label:-systemd}"
   destination="${BACKUP_DIR}/${timestamp}-${old_label}"
   partial="${destination}.partial.$$"
-  mkdir -p "$partial"
+  [[ ! -e "$destination" && ! -L "$destination" ]] || return 1
+  mkdir "$partial" || return 1
   if ! tar -C "$DATA_DIR" -czf "${partial}/data.tar.gz" .; then
-    rm -rf -- "$partial"
+    cleanup_partial_backup "$partial"
     return 1
   fi
-  [[ -f "$RELEASE_ENV" ]] && cp "$RELEASE_ENV" "${partial}/release.env"
-  [[ -f "$COMPOSE_FILE" ]] && cp "$COMPOSE_FILE" "${partial}/compose.yaml"
-  printf 'created_at=%s\nprevious_image=%s\n' "$timestamp" "$old_label" > "${partial}/metadata"
-  mv "$partial" "$destination"
+  if [[ -f "$RELEASE_ENV" ]] && ! cp "$RELEASE_ENV" "${partial}/release.env"; then
+    cleanup_partial_backup "$partial"
+    return 1
+  fi
+  if [[ -f "$COMPOSE_FILE" ]] && ! cp "$COMPOSE_FILE" "${partial}/compose.yaml"; then
+    cleanup_partial_backup "$partial"
+    return 1
+  fi
+  if ! printf 'created_at=%s\nprevious_image=%s\n' "$timestamp" "$old_label" > "${partial}/metadata"; then
+    cleanup_partial_backup "$partial"
+    return 1
+  fi
+  if [[ -e "$destination" || -L "$destination" ]]; then
+    cleanup_partial_backup "$partial"
+    return 1
+  fi
+  if ! mv -n -- "$partial" "$destination" || [[ -e "$partial" || -L "$partial" ]]; then
+    cleanup_partial_backup "$partial"
+    return 1
+  fi
   printf '%s\n' "$destination"
 }
 
 wait_for_health() {
-  local deadline container_id status
+  local release_file="$1" compose_file="$2" deadline remaining container_id status
   deadline=$((SECONDS + HEALTH_TIMEOUT))
-  while (( SECONDS < deadline )); do
-    container_id="$(compose ps -q app 2>/dev/null || true)"
+  while :; do
+    remaining=$((deadline - SECONDS))
+    (( remaining > 0 )) || return 1
+    container_id="$(compose_with "$release_file" "$compose_file" ps -q app 2>/dev/null || true)"
     if [[ -n "$container_id" ]]; then
       status="$(docker inspect --format '{{.State.Health.Status}}' "$container_id" 2>/dev/null || true)"
-      if [[ "$status" == healthy ]] && curl --fail --silent --show-error "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null; then
+      if [[ "$status" == healthy ]] &&
+        curl --connect-timeout "$remaining" --max-time "$remaining" --fail --silent --show-error "http://127.0.0.1:${APP_PORT}/api/health" >/dev/null; then
         return 0
       fi
     fi
     sleep 1
   done
-  return 1
+}
+
+wait_for_systemd_active() {
+  local deadline
+  deadline=$((SECONDS + HEALTH_TIMEOUT))
+  while :; do
+    systemctl is-active "$SYSTEMD_SERVICE" >/dev/null 2>&1 && return 0
+    (( SECONDS < deadline )) || return 1
+    sleep 1
+  done
+}
+
+docker_application_is_active() {
+  local running
+  running="$(docker ps --filter 'name=^/baby-feed$' --filter status=running --format '{{.ID}}' 2>/dev/null || true)"
+  ACTIVE_DOCKER_CONTAINER="$running"
+  [[ -n "$running" ]]
+}
+
+detect_application_state() {
+  local systemd_active=0 docker_active=0 running_image
+  systemctl is-active "$SYSTEMD_SERVICE" >/dev/null 2>&1 && systemd_active=1
+  docker_application_is_active && docker_active=1
+  if [[ "$systemd_active" == 1 && "$docker_active" == 1 ]]; then
+    die 'both systemd and Docker applications are active; refusing ambiguous writer state'
+  fi
+  if [[ "$systemd_active" == 1 ]]; then
+    PREDEPLOY_MODE=systemd
+    PREDEPLOY_IMAGE=
+    return 0
+  fi
+  if [[ "$docker_active" == 1 ]]; then
+    [[ -f "$RELEASE_ENV" && ! -L "$RELEASE_ENV" && -f "$COMPOSE_FILE" && ! -L "$COMPOSE_FILE" ]] ||
+      die 'the Docker application is active without complete stable release state'
+    PREDEPLOY_IMAGE="$(release_value CURRENT_IMAGE)"
+    [[ "$PREDEPLOY_IMAGE" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] ||
+      die 'the active Docker application has an invalid stable image tag'
+    running_image="$(docker inspect --format '{{.Config.Image}}' "$ACTIVE_DOCKER_CONTAINER" 2>/dev/null)" ||
+      die 'the active Docker application image could not be inspected'
+    [[ "$running_image" == "$PREDEPLOY_IMAGE" ]] ||
+      die 'the active Docker application image conflicts with stable release state'
+    PREDEPLOY_MODE=docker
+    return 0
+  fi
+  die 'no active application writer found; refusing to infer state from stale files'
+}
+
+stop_current_application() {
+  if [[ "$PREDEPLOY_MODE" == systemd ]]; then
+    if systemctl stop "$SYSTEMD_SERVICE"; then
+      return 0
+    fi
+    if systemctl is-active "$SYSTEMD_SERVICE" >/dev/null 2>&1; then
+      die 'failed to stop systemd; the original application remains active'
+    fi
+    if systemctl start "$SYSTEMD_SERVICE" && wait_for_systemd_active; then
+      die 'systemd stop failed after stopping the service; the original application was restored'
+    fi
+    die 'systemd stop failed and the original application could not be restored'
+  fi
+
+  if stable_compose stop app; then
+    return 0
+  fi
+  if docker_application_is_active; then
+    die 'failed to stop Docker; the original application remains active'
+  fi
+  if stable_compose up -d --force-recreate app && wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"; then
+    die 'Docker stop failed after stopping the app; the original application was restored'
+  fi
+  die 'Docker stop failed and the original application could not be restored'
+}
+
+restore_previous_application() {
+  restore_stable_state || return 1
+  if [[ "$PREDEPLOY_MODE" == docker ]]; then
+    stable_compose up -d --force-recreate app || return 1
+    wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"
+  else
+    systemctl start "$SYSTEMD_SERVICE" || return 1
+    wait_for_systemd_active
+  fi
+}
+
+validate_incoming_artifact() {
+  local label="$1" source="$2" variable_name="$3" canonical
+  [[ "$source" == /* && "$source" != *$'\n'* ]] || die "${label} must be an absolute path"
+  [[ -f "$source" && ! -L "$source" ]] || die "${label} must be a regular non-symlink file"
+  canonical="$(realpath -e -- "$source")" || die "${label} could not be canonicalized"
+  [[ "$canonical" == "$INCOMING_DIR"/* ]] || die "${label} must be inside ${INCOMING_DIR}"
+  printf -v "$variable_name" '%s' "$canonical"
+}
+
+require_release_directories() {
+  local directory
+  for directory in "$DATA_DIR" "$STABLE_DIR" "$BACKUP_DIR" "$INCOMING_DIR"; do
+    [[ -d "$directory" && ! -L "$directory" ]] || die "run prepare-upload before deploy: ${directory}"
+  done
 }
 
 check_environment() {
@@ -126,6 +349,7 @@ check_environment() {
   command -v tar >/dev/null || die 'tar is required'
   command -v curl >/dev/null || die 'curl is required'
   command -v flock >/dev/null || die 'flock is required'
+  command -v realpath >/dev/null || die 'realpath is required'
   docker version --format 'Docker server {{.Server.Version}}'
   docker compose version
   while [[ ! -e "$probe" && "$probe" != / ]]; do
@@ -134,7 +358,8 @@ check_environment() {
   [[ -d "$probe" && -w "$probe" ]] || die "deployment parent is not writable: ${probe}"
   df -Pk "$probe"
   if [[ -e "$DATA_DIR" ]]; then
-    [[ -d "$DATA_DIR" && -r "$DATA_DIR" ]] || die "data directory is not readable: ${DATA_DIR}"
+    [[ -d "$DATA_DIR" && -r "$DATA_DIR" && ! -L "$DATA_DIR" ]] ||
+      die "data directory is not a readable real directory: ${DATA_DIR}"
   fi
   systemctl is-active "$SYSTEMD_SERVICE" || true
   docker ps --filter 'name=^/baby-feed$' --format '{{.Names}} {{.Status}} {{.Ports}}'
@@ -147,69 +372,69 @@ prepare_upload() {
   mkdir -p "$INCOMING_DIR" "$STABLE_DIR" "$BACKUP_DIR" "$DATA_DIR"
 }
 
-restore_previous_application() {
-  local mode="$1" old_release_copy="$2" old_compose_copy="$3"
-  if [[ "$mode" == docker ]]; then
-    [[ -s "$old_release_copy" && -s "$old_compose_copy" ]] || return 1
-    cp "$old_release_copy" "$RELEASE_ENV"
-    cp "$old_compose_copy" "$COMPOSE_FILE"
-    compose up -d --force-recreate app
-    wait_for_health
-  else
-    rm -f "$RELEASE_ENV"
-    systemctl start "$SYSTEMD_SERVICE"
-  fi
+recover_after_candidate_failure() {
+  candidate_compose stop app || true
+  restore_previous_application
 }
 
 deploy_release() {
-  local new_image="$1" archive="$2" compose_source="$3"
-  local old_current old_release_copy old_compose_copy mode backup_path architecture
+  local new_image="$1" archive_argument="$2" compose_argument="$3"
+  local archive compose_source backup_path architecture systemd_disabled=0
   [[ "$new_image" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || die 'invalid image tag'
-  [[ -f "$archive" && -f "$compose_source" ]] || die 'release artifacts are missing'
+  require_release_directories
+  validate_incoming_artifact 'image archive' "$archive_argument" archive
+  validate_incoming_artifact 'Compose source' "$compose_argument" compose_source
   acquire_lock
-  old_current="$(release_value CURRENT_IMAGE)"
-  mode=systemd
-  [[ -n "$old_current" && -f "$COMPOSE_FILE" ]] && mode=docker
-  new_temp_file old_release_copy
-  new_temp_file old_compose_copy
-  [[ -f "$RELEASE_ENV" ]] && cp "$RELEASE_ENV" "$old_release_copy"
-  [[ -f "$COMPOSE_FILE" ]] && cp "$COMPOSE_FILE" "$old_compose_copy"
+  detect_application_state
+  snapshot_stable_state
+
   gzip -t "$archive"
   gzip -dc "$archive" | docker load >/dev/null
   architecture="$(docker image inspect --format '{{.Architecture}}' "$new_image")"
   [[ "$architecture" == amd64 ]] || die "image architecture must be amd64, got ${architecture}"
-  if [[ "$mode" == docker ]]; then
-    compose stop app
-  else
-    systemctl stop "$SYSTEMD_SERVICE"
-  fi
-  if ! backup_path="$(backup_data "$old_current")"; then
-    restore_previous_application "$mode" "$old_release_copy" "$old_compose_copy" || true
+  stage_candidate_state "$new_image" "$PREDEPLOY_IMAGE" "$compose_source"
+
+  stop_current_application
+  if ! backup_path="$(backup_data "$PREDEPLOY_IMAGE")"; then
+    restore_previous_application || die 'database backup failed and the previous application could not be restored'
     die 'database backup failed; previous application restored'
   fi
-  if ! {
-    chown -R 10001:10001 "$DATA_DIR" &&
-      install -m 0644 "$compose_source" "$COMPOSE_FILE" &&
-      write_release_env "$new_image" "$old_current" &&
-      compose up -d --force-recreate app
-  }; then
-    restore_previous_application "$mode" "$old_release_copy" "$old_compose_copy" || die 'release start and automatic application rollback both failed'
+  if ! chown -R 10001:10001 "$DATA_DIR"; then
+    restore_previous_application || die 'data ownership update failed and the previous application could not be restored'
+    die 'data ownership update failed; previous application restored'
+  fi
+  if ! candidate_compose up -d --force-recreate app; then
+    recover_after_candidate_failure || die 'release start and automatic application rollback both failed'
     die 'release start failed; previous application restored'
   fi
-  if wait_for_health; then
-    if [[ "$mode" == systemd ]] && ! systemctl disable "$SYSTEMD_SERVICE"; then
-      compose stop app || true
-      restore_previous_application "$mode" "$old_release_copy" "$old_compose_copy" || die 'systemd disable failed and the original service could not be restored'
+  if ! wait_for_health "$CANDIDATE_RELEASE_ENV" "$CANDIDATE_COMPOSE_FILE"; then
+    candidate_compose logs --tail=100 app >&2 || true
+    recover_after_candidate_failure || die 'new release and automatic application rollback both failed'
+    die 'new release failed health checks; previous application restored'
+  fi
+
+  if [[ "$PREDEPLOY_MODE" == systemd ]]; then
+    if ! systemctl disable "$SYSTEMD_SERVICE"; then
+      recover_after_candidate_failure ||
+        die 'systemd disable failed and the original service could not be restored'
       die 'systemd disable failed; original service restored'
     fi
-    log "release healthy: ${new_image}; backup: ${backup_path}"
-    rm -f "$archive" "$compose_source"
-    return 0
+    systemd_disabled=1
   fi
-  compose logs --tail=100 app >&2 || true
-  compose stop app || true
-  restore_previous_application "$mode" "$old_release_copy" "$old_compose_copy" || die 'new release and automatic application rollback both failed'
-  die 'new release failed health checks; previous application restored'
+  if ! promote_candidate_state; then
+    candidate_compose stop app || true
+    if [[ "$systemd_disabled" == 1 ]]; then
+      systemctl enable "$SYSTEMD_SERVICE" || true
+    fi
+    restore_previous_application ||
+      die 'stable release promotion failed and the previous application could not be restored'
+    die 'stable release promotion failed; previous application restored'
+  fi
+
+  log "release healthy: ${new_image}; backup: ${backup_path}"
+  if ! rm -f -- "$archive" "$compose_source"; then
+    log 'warning: release succeeded but incoming artifacts could not be removed'
+  fi
 }
 
 main() {
