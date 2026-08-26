@@ -50,6 +50,13 @@ test('feed volume trend component exposes the three granularity controls and sta
   assert.match(trendSource, /aria-pressed/);
 });
 
+test('samples long trend axis labels without dropping trend data points', () => {
+  assert.match(trendSource, /granularity === 'day' && pointCount > 30/);
+  assert.match(trendSource, /\(granularity === 'week' \|\| granularity === 'month'\) && pointCount > 6/);
+  assert.match(trendSource, /index % 2 === 0 \|\| index === pointCount - 1/);
+  assert.match(trendSource, /<BarChart data=\{points\}/);
+});
+
 test('renders feed volume trend inside the guarded history overlay', () => {
   assert.match(pageSource, /import\s+\{?\s*FeedVolumeTrend\s*\}?\s+from\s+['"]@\/components\/feed-volume-trend['"]/);
   assert.match(pageSource, /<FeedVolumeTrend\s+roomId=\{room\.id\}\s+todayTotalMl=\{todayTotalMl\}\s+refreshKey=\{feedTrendRefreshKey\}\s*\/>/);

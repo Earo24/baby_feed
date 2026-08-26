@@ -69,6 +69,22 @@ function formatValue(value: unknown): string {
   return typeof value === 'number' ? `${value} ml` : String(value ?? '');
 }
 
+function shouldShowXAxisLabel(
+  granularity: Granularity,
+  index: number,
+  pointCount: number,
+): boolean {
+  if (granularity === 'day' && pointCount > 30) {
+    return index % 10 === 0 || index === pointCount - 1;
+  }
+
+  if ((granularity === 'week' || granularity === 'month') && pointCount > 6) {
+    return index % 2 === 0 || index === pointCount - 1;
+  }
+
+  return true;
+}
+
 export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolumeTrendProps) {
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [points, setPoints] = useState<FeedTrendPoint[]>([]);
@@ -123,8 +139,6 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
     () => points.reduce((sum, point) => sum + point.measured_count, 0),
     [points],
   );
-  const shouldSampleLabels = granularity === 'day' && points.length > 30;
-
   const retry = () => {
     setRetryNonce((value) => value + 1);
   };
@@ -183,7 +197,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
               tickLine={false}
               interval={0}
               tickFormatter={(value, index) => {
-                if (!shouldSampleLabels || index % 10 === 0 || index === points.length - 1) {
+                if (shouldShowXAxisLabel(granularity, index, points.length)) {
                   return formatTooltipLabel(value);
                 }
                 return '';
