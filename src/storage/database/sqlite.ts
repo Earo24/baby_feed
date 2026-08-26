@@ -202,6 +202,29 @@ export function getFeeds(roomId: string, startIso?: string, limit = 500): FeedRo
     FROM feed_records WHERE room_id = ? ORDER BY started_at DESC LIMIT ?`).all(roomId, limit) as FeedRow[];
 }
 
+export function getFeedTrendRecords(roomId: string, startIso: string): Array<Pick<FeedRow, 'started_at' | 'amount_ml'>> {
+  return getDatabase().prepare(`SELECT started_at, amount_ml FROM feed_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<FeedRow, 'started_at' | 'amount_ml'>>;
+}
+
+export type MultiTrendRecordSets = {
+  feeds: Array<Pick<FeedRow, 'started_at' | 'amount_ml'>>;
+  poops: Array<Pick<PoopRow, 'started_at'>>;
+  medications: Array<Pick<MedicationRow, 'started_at'>>;
+  solid_foods: Array<Pick<SolidFoodRow, 'started_at'>>;
+  awakes: Array<Pick<AwakeRow, 'started_at' | 'ended_at'>>;
+};
+
+export function getMultiTrendRecords(roomId: string, startIso: string): MultiTrendRecordSets {
+  const db = getDatabase();
+  return {
+    feeds: db.prepare(`SELECT started_at, amount_ml FROM feed_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<FeedRow, 'started_at' | 'amount_ml'>>,
+    poops: db.prepare(`SELECT started_at FROM poop_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<PoopRow, 'started_at'>>,
+    medications: db.prepare(`SELECT started_at FROM medication_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<MedicationRow, 'started_at'>>,
+    solid_foods: db.prepare(`SELECT started_at FROM solid_food_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<SolidFoodRow, 'started_at'>>,
+    awakes: db.prepare(`SELECT started_at, ended_at FROM awake_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<AwakeRow, 'started_at' | 'ended_at'>>,
+  };
+}
+
 export function getLastFeed(roomId: string): Pick<FeedRow, 'id' | 'feed_type' | 'started_at' | 'amount_ml'> | undefined {
   return getDatabase().prepare('SELECT id, feed_type, started_at, amount_ml FROM feed_records WHERE room_id = ? ORDER BY started_at DESC LIMIT 1').get(roomId) as Pick<FeedRow, 'id' | 'feed_type' | 'started_at' | 'amount_ml'> | undefined;
 }

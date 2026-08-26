@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const pageSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+const trendSource = readFileSync(new URL('../src/components/feed-volume-trend.tsx', import.meta.url), 'utf8');
 
 test('guards room refresh commits with the latest-request gate', () => {
   assert.match(pageSource, /requestState\.roomGate\.begin\(roomId\)/);
@@ -39,4 +40,126 @@ test('refreshes after deletion from the context current when deletion finishes',
   assert.match(handlerSource, /loadHistorySnapshot\(context\.roomId, context\.days\)/);
   assert.doesNotMatch(handlerSource, /(?<!\.)\bshowHistory\b/);
   assert.doesNotMatch(handlerSource, /(?<!\.)\bhistoryDays\b/);
+});
+
+test('feed volume trend component exposes the three granularity controls and stats request contract', () => {
+  assert.match(trendSource, /按天/);
+  assert.match(trendSource, /按周/);
+  assert.match(trendSource, /按月/);
+  assert.match(trendSource, /feed-stats\?granularity=/);
+  assert.match(trendSource, /aria-pressed/);
+});
+
+test('uses a 30-day daily trend range with evenly spaced mobile-safe labels', () => {
+  assert.match(trendSource, /day: 30/);
+  assert.match(trendSource, /function formatXAxisLabel/);
+  assert.match(trendSource, /function shouldShowXAxisLabel/);
+  assert.match(trendSource, /dayLabelStep = 5/);
+  assert.match(trendSource, /monthLabelStep = 2/);
+  assert.match(trendSource, /granularity === 'day'/);
+  assert.match(trendSource, /`\$\{month\}\/\$\{day\}`/);
+  assert.match(trendSource, /interval=\{0\}/);
+});
+
+test('samples long trend axis labels without dropping trend data points', () => {
+  assert.match(trendSource, /tickFormatter=\{\(value, index\) => \(/);
+  assert.match(trendSource, /shouldShowXAxisLabel\(granularity, index, points\.length\)/);
+  assert.match(trendSource, /formatXAxisLabel\(granularity, value\)/);
+  assert.match(trendSource, /<BarChart[\s\S]*data=\{points\}/);
+  assert.match(trendSource, /<LineChart[\s\S]*data=\{points\}/);
+  assert.match(trendSource, /<Line[\s\S]*dataKey="total_ml"/);
+});
+
+test('uses measured-day averages for weekly and monthly chart values', () => {
+  assert.match(trendSource, /average_daily_ml/);
+  assert.match(trendSource, /measured_day_count/);
+  assert.match(trendSource, /const volumeDataKey = granularity === 'day' \? 'total_ml' : 'average_daily_ml'/);
+  assert.match(trendSource, /平均每天奶量/);
+  assert.match(trendSource, /有奶量记录天数/);
+});
+
+test('renders feed volume trend inside the guarded history overlay', () => {
+  assert.match(pageSource, /import\s+\{?\s*FeedVolumeTrend\s*\}?\s+from\s+['"]@\/components\/feed-volume-trend['"]/);
+  assert.match(pageSource, /<FeedVolumeTrend\s+roomId=\{room\.id\}\s+todayTotalMl=\{todayTotalMl\}\s+refreshKey=\{feedTrendRefreshKey\}\s*\/>/);
+});
+
+test('refreshes feed volume trend after feed mutations', () => {
+  assert.match(pageSource, /const \[feedTrendRefreshNonce, setFeedTrendRefreshNonce\] = useState\(0\)/);
+  assert.match(pageSource, /const feedTrendRefreshKey = `\$\{feedTrendRefreshNonce\}:/);
+
+  const mutationHandlers = [
+    ['handleConfirm', 'const handleSkipConfirm'],
+    ['handleDeleteFeed', 'const handleQuickAddSolidFood'],
+    ['handleSubmitSolidFood', 'const loadHistorySnapshot'],
+    ['handleDeleteSolidFood', 'const handleQuickAddPoop'],
+    ['handleConfirmPoop', 'const handleDeletePoop'],
+    ['handleDeletePoop', '// Medication handlers'],
+    ['handleConfirmMed', 'const handleDeleteMed'],
+    ['handleDeleteMed', '// Awake handlers'],
+    ['handleQuickAddAwake', 'const handleEndAwake'],
+    ['handleConfirmAwake', 'const handleDeleteAwake'],
+    ['handleDeleteAwake', 'const handleLeaveRoom'],
+  ] as const;
+
+  for (const [handlerName, nextDeclaration] of mutationHandlers) {
+    const handlerStart = pageSource.indexOf(`const ${handlerName} = async`);
+    const handlerEnd = pageSource.indexOf(nextDeclaration, handlerStart);
+    assert.ok(handlerStart >= 0, `missing ${handlerName}`);
+    assert.ok(handlerEnd > handlerStart, `could not slice ${handlerName}`);
+    assert.match(
+      pageSource.slice(handlerStart, handlerEnd),
+      /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/,
+      `${handlerName} should refresh the feed volume trend after a successful mutation`,
+    );
+  }
+});
+
+test('requires HTTP success before refreshing feed and closing medication confirmation', () => {
+  const handlerSource = (handlerName: string, nextDeclaration: string) => {
+    const handlerStart = pageSource.indexOf(`const ${handlerName} = async`);
+    const handlerEnd = pageSource.indexOf(nextDeclaration, handlerStart);
+    assert.ok(handlerStart >= 0, `missing ${handlerName}`);
+    assert.ok(handlerEnd > handlerStart, `could not slice ${handlerName}`);
+    return pageSource.slice(handlerStart, handlerEnd);
+  };
+
+  for (const [handlerName, nextDeclaration] of [
+    ['handleConfirm', 'const handleSkipConfirm'],
+    ['handleDeleteFeed', 'const handleQuickAddSolidFood'],
+  ] as const) {
+    assert.match(
+      handlerSource(handlerName, nextDeclaration),
+      /if \(res\.ok && json\.success\)/,
+      `${handlerName} should require an HTTP success response`,
+    );
+  }
+
+  const medicationHandler = handlerSource('handleConfirmMed', 'const handleDeleteMed');
+  assert.match(medicationHandler, /if \(res\.ok && json\.success\) \{[\s\S]*setShowMedConfirm\(false\)/);
+});
+
+test('declares the multi-record event labels and approved palette', () => {
+  assert.match(trendSource, /便便/);
+  assert.match(trendSource, /吃药/);
+  assert.match(trendSource, /辅食/);
+  assert.match(trendSource, /清醒/);
+  for (const color of ['#B8A08A', '#8B9EAF', '#6F9B78', '#7BAF8E', '#FFFCF8']) {
+    assert.match(trendSource, new RegExp(color.replace('#', '\\#')));
+  }
+});
+
+test('renders event markers and an explicit trend tooltip from event points', () => {
+  assert.match(trendSource, /EVENT_TYPES/);
+  assert.match(trendSource, /EventMarker|TrendBarWithEvents/);
+  assert.match(trendSource, /payload\[0\]\.payload/);
+  assert.match(trendSource, /total_ml/);
+  assert.match(trendSource, /有奶量记录：\{point\.measured_count\} 次/);
+  assert.match(trendSource, /awake_minutes/);
+  assert.match(trendSource, /fill=\{['"]#E3B87A['"]\}|#D9917A/);
+});
+
+test('anchors event markers to the shared chart plot top', () => {
+  assert.match(trendSource, /SHARED_CHART_TOP_MARGIN\s*=\s*56/);
+  assert.match(trendSource, /EVENT_PLOT_TOP\s*=\s*SHARED_CHART_TOP_MARGIN/);
+  assert.match(trendSource, /top: SHARED_CHART_TOP_MARGIN/);
 });

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { Utensils } from 'lucide-react';
 
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
+import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
 import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
@@ -238,6 +239,7 @@ export default function Home() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyDays, setHistoryDays] = useState(7);
+  const [feedTrendRefreshNonce, setFeedTrendRefreshNonce] = useState(0);
 
   // Poop states
   const [showPoopConfirm, setShowPoopConfirm] = useState(false);
@@ -487,7 +489,10 @@ export default function Home() {
       const startedAt = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, m);
       const res = await fetch(`/api/rooms/${room.id}/feeds`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feed_type: 'formula', feeder_name: feederName || null, amount_ml: editAmount, started_at: startedAt.toISOString() }) });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setShowFeedConfirm(false); setSubmitting(false); }
   };
 
@@ -498,7 +503,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -521,6 +529,7 @@ export default function Home() {
       if (!res.ok || !json.success) {
         return { success: false, error: json.error || '保存失败，请重试' };
       }
+      setFeedTrendRefreshNonce((value) => value + 1);
       await fetchRoom(room.id);
       return { success: true };
     } catch {
@@ -584,6 +593,7 @@ export default function Home() {
         await Promise.allSettled(refreshServerState());
         return;
       }
+      setFeedTrendRefreshNonce((value) => value + 1);
       await Promise.all(refreshServerState());
     } catch {
       await Promise.allSettled(refreshServerState());
@@ -611,7 +621,10 @@ export default function Home() {
       if (poopNote.trim()) body.note = poopNote.trim();
       const res = await fetch(`/api/rooms/${room.id}/poops`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setShowPoopConfirm(false); setSubmitting(false); }
   };
 
@@ -620,7 +633,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/poops/${poopId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -643,13 +659,17 @@ export default function Home() {
       const [h, m] = medTime.split(':').map(Number);
       const dayOffset = medUsePrevDay ? -1 : 0;
       const startedAt = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, m);
-      await fetch(`/api/rooms/${room.id}/medications`, {
+      const res = await fetch(`/api/rooms/${room.id}/medications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recorder_name: feederName || null, medicine_name: medName || null, dosage: medDosage || null, started_at: startedAt.toISOString() }),
       });
-      setShowMedConfirm(false);
-      await fetchRoom(room.id);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setShowMedConfirm(false);
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -658,7 +678,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/medications/${medId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -675,7 +698,10 @@ export default function Home() {
         body: JSON.stringify({ recorder_name: feederName, started_at: now.toISOString() }),
       });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -703,14 +729,18 @@ export default function Home() {
       // Parse end time
       const [eh, em] = awakeEndTime.split(':').map(Number);
       const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (awakeEndUsePrevDay ? -1 : 0), eh, em);
-      await fetch(`/api/awakes/${confirmAwake.id}`, {
+      const res = await fetch(`/api/awakes/${confirmAwake.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ started_at: startDate.toISOString(), ended_at: endDate.toISOString(), note: awakeNote || null }),
       });
-      setConfirmAwake(null);
-      setAwakeNote('');
-      await fetchRoom(room.id);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setConfirmAwake(null);
+        setAwakeNote('');
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -719,7 +749,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/awakes/${awakeId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -855,6 +888,9 @@ export default function Home() {
   const todayTotalMl = room.feeds.reduce((sum, f) => sum + (f.amount_ml || 0), 0);
   const todayCount = room.feeds.length;
   const todaySolidFoodCount = room.solid_foods?.length || 0;
+  const feedTrendRefreshKey = `${feedTrendRefreshNonce}:${room.feeds
+    .map((feed) => `${feed.id}:${feed.amount_ml ?? ''}:${feed.started_at}`)
+    .join('|')}`;
 
   return (
     <div className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
@@ -1639,6 +1675,10 @@ export default function Home() {
             </button>
             <span className="text-base font-medium" style={{ color: '#3D3229' }}>历史记录</span>
             <div className="w-12" />
+          </div>
+
+          <div className="px-5 pb-2">
+            <FeedVolumeTrend roomId={room.id} todayTotalMl={todayTotalMl} refreshKey={feedTrendRefreshKey} />
           </div>
 
           <div className="flex gap-2 px-5 py-3 justify-center">
