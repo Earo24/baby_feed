@@ -52,17 +52,16 @@ test('feed volume trend component exposes the three granularity controls and sta
 
 test('uses a 30-day daily trend range with evenly spaced mobile-safe labels', () => {
   assert.match(trendSource, /day: 30/);
+  assert.match(trendSource, /function formatXAxisLabel/);
   assert.match(trendSource, /granularity === 'day'/);
-  assert.match(trendSource, /const dayLabelStep = pointCount > 14 \? 5 : 1/);
-  assert.match(trendSource, /index % dayLabelStep === 0/);
+  assert.match(trendSource, /`\$\{month\}\/\$\{day\}`/);
+  assert.match(trendSource, /angle=\{granularity === 'day' \? -90 : 0\}/);
+  assert.match(trendSource, /interval=\{0\}/);
 });
 
 test('samples long trend axis labels without dropping trend data points', () => {
-  assert.match(trendSource, /granularity === 'month' && pointCount > 6/);
-  assert.match(trendSource, /granularity === 'week' && pointCount > 6/);
-  assert.match(trendSource, /index % 3 === 0 \|\| index === pointCount - 1/);
-  assert.match(trendSource, /index % 2 === 0 \|\| index === pointCount - 1/);
-  assert.match(trendSource, /<BarChart data=\{points\}/);
+  assert.match(trendSource, /tickFormatter=\{\(value\) => formatXAxisLabel\(granularity, value\)\}/);
+  assert.match(trendSource, /<BarChart[\s\S]*data=\{points\}/);
 });
 
 test('renders feed volume trend inside the guarded history overlay', () => {
@@ -148,5 +147,5 @@ test('renders event markers and an explicit trend tooltip from event points', ()
 test('anchors event markers to the shared chart plot top', () => {
   assert.match(trendSource, /SHARED_CHART_TOP_MARGIN\s*=\s*56/);
   assert.match(trendSource, /EVENT_PLOT_TOP\s*=\s*SHARED_CHART_TOP_MARGIN/);
-  assert.match(trendSource, /margin=\{\{ top: SHARED_CHART_TOP_MARGIN/);
+  assert.match(trendSource, /top: SHARED_CHART_TOP_MARGIN/);
 });

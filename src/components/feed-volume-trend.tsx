@@ -93,29 +93,12 @@ const chartConfig = {
   measured_count: { label: '有奶量记录次数', color: '#A89888' },
 } satisfies ChartConfig;
 
-function formatTooltipLabel(label: unknown): string {
-  return typeof label === 'string' ? label : '';
-}
-
-function shouldShowXAxisLabel(
-  granularity: Granularity,
-  index: number,
-  pointCount: number,
-): boolean {
-  if (granularity === 'day') {
-    const dayLabelStep = pointCount > 14 ? 5 : 1;
-    return index % dayLabelStep === 0 || index === pointCount - 1;
-  }
-
-  if (granularity === 'month' && pointCount > 6) {
-    return index % 3 === 0 || index === pointCount - 1;
-  }
-
-  if (granularity === 'week' && pointCount > 6) {
-    return index % 2 === 0 || index === pointCount - 1;
-  }
-
-  return true;
+function formatXAxisLabel(granularity: Granularity, label: unknown): string {
+  if (typeof label !== 'string') return '';
+  const match = label.match(/^(\d{1,2})月(\d{1,2})日$/);
+  if (!match) return label;
+  const [, month, day] = match;
+  return granularity === 'month' ? `${month}月` : `${month}/${day}`;
 }
 
 type TrendBarShapeProps = {
@@ -303,20 +286,26 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
         <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>暂无可统计奶量</p>
       ) : (
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
-          <BarChart data={points} margin={{ top: SHARED_CHART_TOP_MARGIN, right: 4, left: -16, bottom: 4 }}>
+          <BarChart
+            data={points}
+            margin={{
+              top: SHARED_CHART_TOP_MARGIN,
+              right: 20,
+              left: -16,
+              bottom: granularity === 'day' ? 32 : 4,
+            }}
+          >
             <CartesianGrid vertical={false} stroke="#F1E5D8" />
             <XAxis
               dataKey="label"
               axisLine={false}
               tickLine={false}
               interval={0}
-              tickFormatter={(value, index) => {
-                if (shouldShowXAxisLabel(granularity, index, points.length)) {
-                  return formatTooltipLabel(value);
-                }
-                return '';
-              }}
-              tick={{ fill: '#A89888', fontSize: 10 }}
+              height={granularity === 'day' ? 64 : 24}
+              angle={granularity === 'day' ? -90 : 0}
+              textAnchor={granularity === 'day' ? 'end' : 'middle'}
+              tickFormatter={(value) => formatXAxisLabel(granularity, value)}
+              tick={{ fill: '#A89888', fontSize: granularity === 'day' ? 8 : 10 }}
             />
             <YAxis
               axisLine={false}
