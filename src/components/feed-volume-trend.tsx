@@ -56,7 +56,9 @@ const GRANULARITY_LABELS: Record<Granularity, string> = {
 };
 
 const chartConfig = {
-  total_ml: { label: '总奶量', color: '#E3B87A' },
+  volume: { label: '总奶量', color: '#E3B87A' },
+  feed_count: { label: '喂奶次数', color: '#A89888' },
+  measured_count: { label: '有奶量记录次数', color: '#A89888' },
 } satisfies ChartConfig;
 
 function formatTooltipLabel(label: unknown): string {
@@ -128,15 +130,15 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
   };
 
   return (
-    <section className="w-full min-w-0 rounded-2xl bg-[#FFFCF8] p-4" aria-label="奶量趋势">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="w-full min-w-0 overflow-hidden rounded-2xl bg-[#FFFCF8] p-4" aria-label="奶量趋势">
+      <div className="mb-3 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="text-sm" style={{ color: '#8F7968' }}>今日总量</span>
           <strong className="text-xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>
             {todayTotalMl} ml
           </strong>
         </div>
-        <div className="flex shrink-0 gap-1 rounded-xl bg-[#FFF3E6] p-1" role="group" aria-label="趋势粒度">
+        <div className="flex max-w-full flex-wrap gap-1 rounded-xl bg-[#FFF3E6] p-1" role="group" aria-label="趋势粒度">
           {(Object.keys(GRANULARITY_LABELS) as Granularity[]).map((option) => (
             <button
               key={option}
@@ -200,9 +202,9 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
               content={
                 <ChartTooltipContent
                   labelFormatter={(label) => formatTooltipLabel(label)}
-                  formatter={(value, name, item) => {
-                    const point = item.payload as FeedTrendPoint;
+                  formatter={(value, name) => {
                     const labels: Record<string, string> = {
+                      volume: '总奶量',
                       total_ml: '总奶量',
                       feed_count: '喂奶次数',
                       measured_count: '有奶量记录次数',
@@ -214,7 +216,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                 />
               }
             />
-            <Bar dataKey="total_ml" name="total_ml" radius={[6, 6, 0, 0]}>
+            <Bar dataKey="total_ml" name="volume" radius={[6, 6, 0, 0]}>
               {points.map((point) => (
                 <Cell
                   key={point.period_start}
