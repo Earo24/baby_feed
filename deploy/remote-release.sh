@@ -272,6 +272,21 @@ docker_application_is_active() {
   [[ -n "$running" ]]
 }
 
+docker_application_is_stopped() {
+  local running
+  if ! running="$(docker ps --filter 'name=^/baby-feed$' --filter status=running --format '{{.ID}}' 2>/dev/null)"; then
+    return 1
+  fi
+  ACTIVE_DOCKER_CONTAINER="$running"
+  [[ -z "$running" ]]
+}
+
+stop_compose_application() {
+  local release_file="$1" compose_file="$2"
+  compose_with "$release_file" "$compose_file" stop app || return 1
+  docker_application_is_stopped
+}
+
 detect_application_state() {
   local systemd_active=0 docker_active=0 running_image
   systemctl is-active "$SYSTEMD_SERVICE" >/dev/null 2>&1 && systemd_active=1
@@ -314,7 +329,7 @@ stop_current_application() {
     die 'systemd stop failed and the original application could not be restored'
   fi
 
-  if stable_compose stop app; then
+  if stop_compose_application "$RELEASE_ENV" "$COMPOSE_FILE"; then
     return 0
   fi
   if docker_application_is_active; then
@@ -422,7 +437,7 @@ rollback_release() {
 
   new_stable_temp_file saved_release rollback-release
   cp "$RELEASE_ENV" "$saved_release"
-  if ! stable_compose stop app; then
+  if ! stop_compose_application "$RELEASE_ENV" "$COMPOSE_FILE"; then
     if docker_application_is_active; then
       die 'failed to stop Docker; the current application remains active'
     fi
@@ -461,7 +476,9 @@ rollback_release() {
     return 0
   fi
 
-  stable_compose stop app || true
+  if ! stop_compose_application "$RELEASE_ENV" "$COMPOSE_FILE"; then
+    die 'rollback target failed health checks and could not be stopped; original application was not started'
+  fi
   atomic_install "$saved_release" "$RELEASE_ENV" 0600 ||
     die 'rollback target failed health checks and release state could not be restored'
   if ! stable_compose up -d --force-recreate app ||
@@ -519,13 +536,13 @@ prepare_upload() {
 }
 
 recover_after_candidate_failure() {
-  candidate_compose stop app || true
+  stop_compose_application "$CANDIDATE_RELEASE_ENV" "$CANDIDATE_COMPOSE_FILE" || return 2
   restore_previous_application
 }
 
 deploy_release() {
   local new_image="$1" archive_argument="$2" compose_argument="$3"
-  local archive compose_source backup_path architecture systemd_disabled=0
+  local archive compose_source backup_path architecture systemd_disabled=0 recovery_status
   [[ "$new_image" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || die 'invalid image tag'
   require_release_directories
   validate_incoming_artifact 'image archive' "$archive_argument" archive
@@ -550,25 +567,47 @@ deploy_release() {
     die 'data ownership update failed; previous application restored'
   fi
   if ! candidate_compose up -d --force-recreate app; then
-    recover_after_candidate_failure || die 'release start and automatic application rollback both failed'
-    die 'release start failed; previous application restored'
+    if recover_after_candidate_failure; then
+      die 'release start failed; previous application restored'
+    else
+      recovery_status=$?
+    fi
+    if (( recovery_status == 2 )); then
+      die 'candidate application could not be stopped; previous application was not started'
+    fi
+    die 'release start and automatic application rollback both failed'
   fi
   if ! wait_for_health "$CANDIDATE_RELEASE_ENV" "$CANDIDATE_COMPOSE_FILE"; then
     candidate_compose logs --tail=100 app >&2 || true
-    recover_after_candidate_failure || die 'new release and automatic application rollback both failed'
-    die 'new release failed health checks; previous application restored'
+    if recover_after_candidate_failure; then
+      die 'new release failed health checks; previous application restored'
+    else
+      recovery_status=$?
+    fi
+    if (( recovery_status == 2 )); then
+      die 'candidate application could not be stopped; previous application was not started'
+    fi
+    die 'new release and automatic application rollback both failed'
   fi
 
   if [[ "$PREDEPLOY_MODE" == systemd ]]; then
     if ! systemctl disable "$SYSTEMD_SERVICE"; then
-      recover_after_candidate_failure ||
-        die 'systemd disable failed and the original service could not be restored'
-      die 'systemd disable failed; original service restored'
+      if recover_after_candidate_failure; then
+        die 'systemd disable failed; original service restored'
+      else
+        recovery_status=$?
+      fi
+      if (( recovery_status == 2 )); then
+        die 'candidate application could not be stopped; original service was not started'
+      fi
+      die 'systemd disable failed and the original service could not be restored'
     fi
     systemd_disabled=1
   fi
   if ! promote_candidate_state; then
-    candidate_compose stop app || true
+    if ! stop_compose_application "$CANDIDATE_RELEASE_ENV" "$CANDIDATE_COMPOSE_FILE"; then
+      die 'candidate application could not be stopped; previous application was not started'
+    fi
     restore_previous_application ||
       die 'stable release promotion failed and the previous application could not be restored'
     die 'stable release promotion failed; previous application restored'

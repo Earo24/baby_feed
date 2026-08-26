@@ -26,6 +26,15 @@ case "$name:$1" in
       previous="$argument"
     done
     if [[ "$*" == *" stop app"* && ( -z "$compose_file" || ! -f "$compose_file" ) ]]; then exit 1; fi
+    if [[ "$*" == *" stop app"* ]]; then
+      stop_counter_file="\${FAKE_STATE_DIR}/fake-compose-stop-count"
+      if [[ -f "$stop_counter_file" ]]; then stop_count="$(<"$stop_counter_file")"; else stop_count=0; fi
+      printf '%s\n' "$((stop_count + 1))" >"$stop_counter_file"
+      if [[ "\${FAKE_COMPOSE_STOP_FAIL_AFTER:-0}" =~ ^[1-9][0-9]*$ ]] &&
+        (( stop_count + 1 == FAKE_COMPOSE_STOP_FAIL_AFTER )); then
+        exit 1
+      fi
+    fi
     if [[ "$*" == *" stop app"* && "\${FAKE_STOP_FAIL:-0}" == 1 ]]; then exit 1; fi
     if [[ "$*" == *" up -d"* ]]; then
       failures="\${FAKE_COMPOSE_UP_FAILURES:-0}"
@@ -35,9 +44,13 @@ case "$name:$1" in
         printf '%s\n' "$((count + 1))" >"$counter_file"
         exit 1
       fi
+      /bin/rm -f "\${FAKE_STATE_DIR}/fake-docker-stopped"
     fi
     if [[ "$*" == *" stop app"* && "$compose_file" == *candidate-compose* ]]; then
       : >"\${FAKE_STATE_DIR}/candidate-stopped"
+    fi
+    if [[ "$*" == *" stop app"* ]]; then
+      : >"\${FAKE_STATE_DIR}/fake-docker-stopped"
     fi
     if [[ "$*" == *" ps -q app"* ]]; then echo baby-feed-test-container; fi
     ;;
@@ -58,7 +71,12 @@ case "$name:$1" in
       fi
     fi
   ;;
-  docker:ps) [[ "\${FAKE_DOCKER_ACTIVE:-0}" == 1 ]] && echo baby-feed-running;;
+  docker:ps)
+    if [[ "\${FAKE_DOCKER_ACTIVE:-0}" == 1 && ! -f "\${FAKE_STATE_DIR}/fake-docker-stopped" ]]; then
+      echo baby-feed-running
+    fi
+    :
+    ;;
   docker:images)
     [[ "\${FAKE_DOCKER_IMAGES_FAIL:-0}" != 1 ]] || exit 1
     printf '%s\n' "\${FAKE_IMAGE_LIST:-}"

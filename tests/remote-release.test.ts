@@ -23,6 +23,7 @@ type FixtureOptions = {
   backupDeleteFailures?: number;
   backupKeep?: number;
   composeUpFailures?: number;
+  composeStopFailAfter?: number;
   dockerActive?: boolean;
   dockerImagesFails?: boolean;
   dockerRmiFails?: boolean;
@@ -77,6 +78,9 @@ function createFixture(options: FixtureOptions = {}) {
     FAKE_BACKUP_DELETE_FAILURES: options.backupDeleteFailures ? String(options.backupDeleteFailures) : '0',
     BACKUP_KEEP: options.backupKeep ? String(options.backupKeep) : '10',
     FAKE_COMPOSE_UP_FAILURES: options.composeUpFailures ? String(options.composeUpFailures) : '0',
+    FAKE_COMPOSE_STOP_FAIL_AFTER: options.composeStopFailAfter
+      ? String(options.composeStopFailAfter)
+      : '0',
     FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
     FAKE_DOCKER_IMAGES_FAIL: options.dockerImagesFails ? '1' : '0',
     FAKE_DOCKER_RMI_FAIL: options.dockerRmiFails ? '1' : '0',
@@ -419,6 +423,52 @@ test('fails loudly when systemd cannot be re-enabled after partial promotion', (
   assert.match(result.stderr, /previous application could not be restored/);
   assert.match(fixture.commandLog(), /systemctl\|enable baby-feed/);
   assert.equal(fixture.commandLog().includes('systemctl|start baby-feed'), false);
+});
+
+test('fails closed when the candidate cannot be stopped after health failure', () => {
+  const fixture = createFixture({
+    composeStopFailAfter: 2,
+    healthSequence: ['unhealthy'],
+    httpHealthy: true,
+    systemdActive: false,
+  });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  const before = fixture.dataDigest();
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /candidate application could not be stopped/);
+  assert.equal(fixture.commandLog().match(/compose[^\n]*up -d/g)?.length, 1);
+  assert.equal(fixture.dataDigest(), before);
+});
+
+test('fails closed when the candidate cannot be stopped after promotion failure', () => {
+  const fixture = createFixture({
+    composeStopFailAfter: 1,
+    httpHealthy: true,
+    promotionMoveFailAfter: 1,
+    systemdActive: true,
+  });
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /candidate application could not be stopped/);
+  assert.equal(fixture.commandLog().includes('systemctl|start baby-feed'), false);
+});
+
+test('fails closed when the rollback target cannot be stopped after health failure', () => {
+  const fixture = createFixture({
+    composeStopFailAfter: 2,
+    healthSequence: ['unhealthy'],
+    httpHealthy: true,
+    systemdActive: false,
+  });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /rollback target failed health checks and could not be stopped/);
+  assert.equal(fixture.commandLog().match(/compose[^\n]*up -d/g)?.length, 1);
 });
 
 test('rejects a data symlink that resolves outside the deployment root before chown', () => {
