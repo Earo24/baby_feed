@@ -28,6 +28,7 @@ test('day trend uses Beijing 08:00 boundary and counts measured values', () => {
   ]);
   const current = points.at(-1)!;
   assert.equal(current.period_start, '2026-08-26T00:00:00.000Z');
+  assert.equal(current.label, '8月26日');
   assert.equal(current.feed_count, 3);
   assert.equal(current.measured_count, 1);
   assert.equal(current.total_ml, 80);
@@ -41,6 +42,7 @@ test('week trend aggregates by Beijing Monday and returns continuous buckets', (
   ]);
   assert.equal(points.length, 12);
   const weekOfAug24 = points.find((point) => point.period_start === '2026-08-23T16:00:00.000Z')!;
+  assert.equal(weekOfAug24.label, '8月24日');
   assert.equal(weekOfAug24.total_ml, 150);
   assert.ok(points.every((point) => point.period_start && point.label));
 });
@@ -51,6 +53,6 @@ test('month trend handles Beijing month boundary', () => {
     { started_at: '2026-07-31T16:00:00.000Z', amount_ml: 60 }, // Sep 1 Beijing
     { started_at: '2026-08-25T00:00:00.000Z', amount_ml: 20 },
   ]);
-  assert.equal(points.find((point) => point.label === '2026-07')!.total_ml, 40);
-  assert.equal(points.find((point) => point.label === '2026-08')!.total_ml, 80);
+  assert.equal(points.find((point) => point.label === '2026年7月')!.total_ml, 40);
+  assert.equal(points.find((point) => point.label === '2026年8月')!.total_ml, 80);
 });

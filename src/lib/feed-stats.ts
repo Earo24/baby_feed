@@ -80,7 +80,9 @@ function periodStart(granularity: FeedTrendGranularity, key: string): Date {
 }
 
 function labelFor(granularity: FeedTrendGranularity, key: string): string {
-  return granularity === 'month' ? key.slice(0, 7) : key;
+  const [year, month, day] = key.split('-').map(Number);
+  if (granularity === 'month') return `${year}年${month}月`;
+  return `${month}月${day}日`;
 }
 
 export function getTrendRangeStart(granularity: FeedTrendGranularity, now = new Date()): string {
