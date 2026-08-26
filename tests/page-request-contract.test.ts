@@ -68,12 +68,31 @@ test('refreshes feed volume trend after feed mutations', () => {
   assert.match(pageSource, /const \[feedTrendRefreshNonce, setFeedTrendRefreshNonce\] = useState\(0\)/);
   assert.match(pageSource, /const feedTrendRefreshKey = `\$\{feedTrendRefreshNonce\}:/);
 
-  const addHandlerStart = pageSource.indexOf('const handleConfirm = async');
-  const addHandlerEnd = pageSource.indexOf('const handleSkipConfirm', addHandlerStart);
-  const deleteHandlerStart = pageSource.indexOf('const handleDeleteFeed = async');
-  const deleteHandlerEnd = pageSource.indexOf('const handleQuickAddSolidFood', deleteHandlerStart);
-  assert.match(pageSource.slice(addHandlerStart, addHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
-  assert.match(pageSource.slice(deleteHandlerStart, deleteHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
+  const mutationHandlers = [
+    ['handleConfirm', 'const handleSkipConfirm'],
+    ['handleDeleteFeed', 'const handleQuickAddSolidFood'],
+    ['handleSubmitSolidFood', 'const loadHistorySnapshot'],
+    ['handleDeleteSolidFood', 'const handleQuickAddPoop'],
+    ['handleConfirmPoop', 'const handleDeletePoop'],
+    ['handleDeletePoop', '// Medication handlers'],
+    ['handleConfirmMed', 'const handleDeleteMed'],
+    ['handleDeleteMed', '// Awake handlers'],
+    ['handleQuickAddAwake', 'const handleEndAwake'],
+    ['handleConfirmAwake', 'const handleDeleteAwake'],
+    ['handleDeleteAwake', 'const handleLeaveRoom'],
+  ] as const;
+
+  for (const [handlerName, nextDeclaration] of mutationHandlers) {
+    const handlerStart = pageSource.indexOf(`const ${handlerName} = async`);
+    const handlerEnd = pageSource.indexOf(nextDeclaration, handlerStart);
+    assert.ok(handlerStart >= 0, `missing ${handlerName}`);
+    assert.ok(handlerEnd > handlerStart, `could not slice ${handlerName}`);
+    assert.match(
+      pageSource.slice(handlerStart, handlerEnd),
+      /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/,
+      `${handlerName} should refresh the feed volume trend after a successful mutation`,
+    );
+  }
 });
 
 test('declares the multi-record event labels and approved palette', () => {

@@ -529,6 +529,7 @@ export default function Home() {
       if (!res.ok || !json.success) {
         return { success: false, error: json.error || '保存失败，请重试' };
       }
+      setFeedTrendRefreshNonce((value) => value + 1);
       await fetchRoom(room.id);
       return { success: true };
     } catch {
@@ -592,6 +593,7 @@ export default function Home() {
         await Promise.allSettled(refreshServerState());
         return;
       }
+      setFeedTrendRefreshNonce((value) => value + 1);
       await Promise.all(refreshServerState());
     } catch {
       await Promise.allSettled(refreshServerState());
@@ -619,7 +621,10 @@ export default function Home() {
       if (poopNote.trim()) body.note = poopNote.trim();
       const res = await fetch(`/api/rooms/${room.id}/poops`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setShowPoopConfirm(false); setSubmitting(false); }
   };
 
@@ -628,7 +633,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/poops/${poopId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -651,13 +659,17 @@ export default function Home() {
       const [h, m] = medTime.split(':').map(Number);
       const dayOffset = medUsePrevDay ? -1 : 0;
       const startedAt = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, m);
-      await fetch(`/api/rooms/${room.id}/medications`, {
+      const res = await fetch(`/api/rooms/${room.id}/medications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recorder_name: feederName || null, medicine_name: medName || null, dosage: medDosage || null, started_at: startedAt.toISOString() }),
       });
+      const json = await res.json();
       setShowMedConfirm(false);
-      await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -666,7 +678,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/medications/${medId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -683,7 +698,10 @@ export default function Home() {
         body: JSON.stringify({ recorder_name: feederName, started_at: now.toISOString() }),
       });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -711,14 +729,18 @@ export default function Home() {
       // Parse end time
       const [eh, em] = awakeEndTime.split(':').map(Number);
       const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (awakeEndUsePrevDay ? -1 : 0), eh, em);
-      await fetch(`/api/awakes/${confirmAwake.id}`, {
+      const res = await fetch(`/api/awakes/${confirmAwake.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ started_at: startDate.toISOString(), ended_at: endDate.toISOString(), note: awakeNote || null }),
       });
-      setConfirmAwake(null);
-      setAwakeNote('');
-      await fetchRoom(room.id);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setConfirmAwake(null);
+        setAwakeNote('');
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setSubmitting(false); }
   };
 
@@ -727,7 +749,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/awakes/${awakeId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (res.ok && json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
