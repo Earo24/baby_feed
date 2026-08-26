@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   TREND_BUCKET_COUNTS,
   buildFeedTrend,
+  getTrendPeriodStart,
   getTrendBucketCount,
   getTrendRangeStart,
 } from '../src/lib/feed-stats';
@@ -37,22 +38,34 @@ test('day trend uses Beijing 08:00 boundary and counts measured values', () => {
 test('week trend aggregates by Beijing Monday and returns continuous buckets', () => {
   const points = buildFeedTrend('week', NOW, [
     { started_at: '2026-08-24T00:00:00.000Z', amount_ml: 120 }, // Monday Beijing
+    { started_at: '2026-08-23T23:00:00.000Z', amount_ml: 10 }, // Monday 07:00 Beijing -> prior business Sunday
     { started_at: '2026-08-30T15:59:59.000Z', amount_ml: 30 }, // Sunday 23:59 Beijing
     { started_at: '2026-08-30T16:00:00.000Z', amount_ml: 50 }, // Monday 00:00 Beijing
   ]);
   assert.equal(points.length, 12);
   const weekOfAug24 = points.find((point) => point.period_start === '2026-08-23T16:00:00.000Z')!;
   assert.equal(weekOfAug24.label, '8月24日');
-  assert.equal(weekOfAug24.total_ml, 150);
+  assert.equal(weekOfAug24.total_ml, 200);
+  const weekOfAug17 = points.find((point) => point.period_start === '2026-08-16T16:00:00.000Z')!;
+  assert.equal(weekOfAug17.total_ml, 10);
   assert.ok(points.every((point) => point.period_start && point.label));
 });
 
 test('month trend handles Beijing month boundary', () => {
   const points = buildFeedTrend('month', NOW, [
     { started_at: '2026-07-31T15:59:59.000Z', amount_ml: 40 }, // Aug 31 23:59 Beijing
-    { started_at: '2026-07-31T16:00:00.000Z', amount_ml: 60 }, // Sep 1 Beijing
+    { started_at: '2026-08-01T00:00:00.000Z', amount_ml: 60 }, // Aug 1 08:00 Beijing
+    { started_at: '2026-07-31T23:00:00.000Z', amount_ml: 5 }, // Aug 1 07:00 Beijing -> prior business month
     { started_at: '2026-08-25T00:00:00.000Z', amount_ml: 20 },
   ]);
-  assert.equal(points.find((point) => point.label === '2026年7月')!.total_ml, 40);
+  assert.equal(points.find((point) => point.label === '2026年7月')!.total_ml, 45);
   assert.equal(points.find((point) => point.label === '2026年8月')!.total_ml, 80);
+});
+
+test('getTrendPeriodStart applies Beijing business-day boundary to every granularity', () => {
+  assert.equal(getTrendPeriodStart('day', new Date('2026-08-25T23:00:00.000Z')), '2026-08-25T00:00:00.000Z');
+  assert.equal(getTrendPeriodStart('week', new Date('2026-08-23T23:00:00.000Z')), '2026-08-16T16:00:00.000Z');
+  assert.equal(getTrendPeriodStart('week', new Date('2026-08-24T00:00:00.000Z')), '2026-08-23T16:00:00.000Z');
+  assert.equal(getTrendPeriodStart('month', new Date('2026-07-31T23:00:00.000Z')), '2026-06-30T16:00:00.000Z');
+  assert.equal(getTrendPeriodStart('month', new Date('2026-08-01T00:00:00.000Z')), '2026-07-31T16:00:00.000Z');
 });

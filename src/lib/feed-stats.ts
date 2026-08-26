@@ -29,12 +29,6 @@ function localDate(now: Date): Date {
   return new Date(now.getTime() + CHINA_OFFSET_MS);
 }
 
-function dayKey(date: Date): string {
-  const china = localDate(date);
-  if (china.getUTCHours() < 8) china.setUTCDate(china.getUTCDate() - 1);
-  return formatDate(china);
-}
-
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -44,21 +38,30 @@ function utcStartForLocalDate(key: string): Date {
   return new Date(Date.UTC(year, month - 1, day) - CHINA_OFFSET_MS);
 }
 
-function weekKey(date: Date): string {
+function businessDate(date: Date): Date {
   const china = localDate(date);
+  if (china.getUTCHours() < 8) china.setUTCDate(china.getUTCDate() - 1);
+  return china;
+}
+
+function weekKey(china: Date): string {
   const day = china.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   china.setUTCDate(china.getUTCDate() + mondayOffset);
   return formatDate(china);
 }
 
-function monthKey(date: Date): string {
-  const china = localDate(date);
+function monthKey(china: Date): string {
   return `${china.getUTCFullYear()}-${String(china.getUTCMonth() + 1).padStart(2, '0')}-01`;
 }
 
 function keyFor(granularity: FeedTrendGranularity, date: Date): string {
-  return granularity === 'day' ? dayKey(date) : granularity === 'week' ? weekKey(date) : monthKey(date);
+  const chinaBusiness = businessDate(date);
+  return granularity === 'day'
+    ? formatDate(chinaBusiness)
+    : granularity === 'week'
+      ? weekKey(chinaBusiness)
+      : monthKey(chinaBusiness);
 }
 
 function shiftKey(granularity: FeedTrendGranularity, key: string, delta: number): string {
@@ -83,6 +86,10 @@ function labelFor(granularity: FeedTrendGranularity, key: string): string {
   const [year, month, day] = key.split('-').map(Number);
   if (granularity === 'month') return `${year}年${month}月`;
   return `${month}月${day}日`;
+}
+
+export function getTrendPeriodStart(granularity: FeedTrendGranularity, date: Date): string {
+  return periodStart(granularity, keyFor(granularity, date)).toISOString();
 }
 
 export function getTrendRangeStart(granularity: FeedTrendGranularity, now = new Date()): string {
