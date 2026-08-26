@@ -19,6 +19,13 @@ case "$name:$1" in
     fi
     ;;
   docker:compose)
+    compose_file=''
+    previous=''
+    for argument in "$@"; do
+      if [[ "$previous" == -f ]]; then compose_file="$argument"; fi
+      previous="$argument"
+    done
+    if [[ "$*" == *" stop app"* && ( -z "$compose_file" || ! -f "$compose_file" ) ]]; then exit 1; fi
     if [[ "$*" == *" stop app"* && "\${FAKE_STOP_FAIL:-0}" == 1 ]]; then exit 1; fi
     if [[ "$*" == *" up -d"* ]]; then
       failures="\${FAKE_COMPOSE_UP_FAILURES:-0}"
@@ -28,6 +35,9 @@ case "$name:$1" in
         printf '%s\n' "$((count + 1))" >"$counter_file"
         exit 1
       fi
+    fi
+    if [[ "$*" == *" stop app"* && "$compose_file" == *candidate-compose* ]]; then
+      : >"\${FAKE_STATE_DIR}/candidate-stopped"
     fi
     if [[ "$*" == *" ps -q app"* ]]; then echo baby-feed-test-container; fi
     ;;
@@ -72,6 +82,7 @@ case "$name:$1" in
     fi
     exec /bin/rm "$@"
     ;;
+  systemctl:enable) [[ "\${FAKE_SYSTEMD_ENABLE_FAIL:-0}" != 1 ]];;
   systemctl:is-active) [[ "\${FAKE_SYSTEMD_ACTIVE:-1}" == 1 ]];;
   systemctl:stop) [[ "\${FAKE_STOP_FAIL:-0}" != 1 ]];;
   systemctl:*) :;;
@@ -92,6 +103,12 @@ case "$name:$1" in
     ;;
   mv:*)
     if [[ "\${FAKE_BACKUP_FINALIZE_FAIL:-0}" == 1 && "$*" == *".partial."* ]]; then exit 1; fi
+    if [[ "$1" == -f && "$*" == *"/deploy/"* && "\${FAKE_PROMOTION_FAIL_AFTER:-0}" =~ ^[1-9][0-9]*$ ]]; then
+      counter_file="\${FAKE_STATE_DIR}/fake-promotion-mv-count"
+      if [[ -f "$counter_file" ]]; then count="$(<"$counter_file")"; else count=0; fi
+      printf '%s\n' "$((count + 1))" >"$counter_file"
+      if (( count == FAKE_PROMOTION_FAIL_AFTER )); then exit 1; fi
+    fi
     exec /bin/mv "$@"
     ;;
   date:*)

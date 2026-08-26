@@ -32,7 +32,9 @@ type FixtureOptions = {
   httpHealthy?: boolean;
   imageKeep?: number;
   imageList?: string[];
+  promotionMoveFailAfter?: number;
   stopFails?: boolean;
+  systemdEnableFails?: boolean;
   systemdActive?: boolean;
   tarFails?: boolean;
 };
@@ -83,8 +85,12 @@ function createFixture(options: FixtureOptions = {}) {
     FAKE_HTTP_HEALTH: options.httpHealthy === false ? '0' : '1',
     IMAGE_KEEP: options.imageKeep ? String(options.imageKeep) : '3',
     FAKE_IMAGE_LIST: options.imageList?.join('\n') ?? '',
+    FAKE_PROMOTION_FAIL_AFTER: options.promotionMoveFailAfter
+      ? String(options.promotionMoveFailAfter)
+      : '0',
     FAKE_RUNNING_IMAGE: '',
     FAKE_STOP_FAIL: options.stopFails ? '1' : '0',
+    FAKE_SYSTEMD_ENABLE_FAIL: options.systemdEnableFails ? '1' : '0',
     FAKE_SYSTEMD_ACTIVE: options.systemdActive === false ? '0' : '1',
     FAKE_TAR_FAIL: options.tarFails ? '1' : '0',
     FAKE_TIMESTAMP: options.fixedTimestamp ?? '',
@@ -213,6 +219,17 @@ function createFixture(options: FixtureOptions = {}) {
       rmSync(dataDirectory, { recursive: true });
       symlinkSync(external, dataDirectory);
       return external;
+    },
+    replaceLockWithExternalSymlink() {
+      const external = mkdtempSync(path.join(os.tmpdir(), 'baby-feed-external-lock-'));
+      temporaryRoots.push(external);
+      const target = path.join(external, 'lock-target');
+      writeFileSync(target, 'lock-target-content');
+      symlinkSync(target, path.join(root, 'deploy.lock'));
+      return target;
+    },
+    candidateStopped() {
+      return existsSync(path.join(root, 'candidate-stopped'));
     },
   };
 }
@@ -359,6 +376,49 @@ test('rejects a deployment path containing traversal before creating directories
 
   assert.notEqual(result.status, 0);
   assert.equal(existsSync(path.join(fixture.root, 'unsafe')), false);
+});
+
+test('refuses a symlinked deployment lock without modifying its target', () => {
+  const fixture = createFixture();
+  const target = fixture.replaceLockWithExternalSymlink();
+  const before = readFileSync(target, 'utf8');
+
+  const result = fixture.run('prepare-upload');
+
+  assert.notEqual(result.status, 0);
+  assert.equal(readFileSync(target, 'utf8'), before);
+  assert.equal(fixture.commandLog().includes('flock|'), false);
+});
+
+test('stops the candidate app before restoring systemd after partial promotion', () => {
+  const fixture = createFixture({
+    httpHealthy: true,
+    promotionMoveFailAfter: 1,
+    systemdActive: true,
+  });
+  const before = fixture.dataDigest();
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.candidateStopped(), true);
+  const log = fixture.commandLog();
+  assert.ok(log.indexOf('candidate-compose') < log.indexOf('systemctl|start baby-feed'));
+  assert.equal(fixture.dataDigest(), before);
+});
+
+test('fails loudly when systemd cannot be re-enabled after partial promotion', () => {
+  const fixture = createFixture({
+    httpHealthy: true,
+    promotionMoveFailAfter: 1,
+    systemdActive: true,
+    systemdEnableFails: true,
+  });
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /previous application could not be restored/);
+  assert.match(fixture.commandLog(), /systemctl\|enable baby-feed/);
+  assert.equal(fixture.commandLog().includes('systemctl|start baby-feed'), false);
 });
 
 test('rejects a data symlink that resolves outside the deployment root before chown', () => {

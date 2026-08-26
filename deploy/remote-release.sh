@@ -104,8 +104,20 @@ candidate_compose() {
 }
 
 acquire_lock() {
+  local lock_path
   mkdir -p "$DEPLOY_DIR"
-  exec 9>"${DEPLOY_DIR}/deploy.lock"
+  lock_path="${DEPLOY_DIR}/deploy.lock"
+  if [[ -L "$lock_path" ]]; then
+    die 'deployment lock must not be a symlink'
+  fi
+  if [[ -e "$lock_path" && ! -f "$lock_path" ]]; then
+    die 'deployment lock must be a regular file'
+  fi
+  if [[ ! -e "$lock_path" ]] && ! (set -o noclobber; : >"$lock_path") 2>/dev/null; then
+    [[ -f "$lock_path" && ! -L "$lock_path" ]] || die 'deployment lock could not be created safely'
+  fi
+  [[ -f "$lock_path" && ! -L "$lock_path" ]] || die 'deployment lock must be a regular file'
+  exec 9>>"$lock_path" || die 'deployment lock could not be opened'
   flock -n 9 || die 'another deployment is already running'
 }
 
@@ -320,6 +332,9 @@ restore_previous_application() {
     stable_compose up -d --force-recreate app || return 1
     wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"
   else
+    if [[ "${systemd_disabled:-0}" == 1 ]] && ! systemctl enable "$SYSTEMD_SERVICE"; then
+      return 1
+    fi
     systemctl start "$SYSTEMD_SERVICE" || return 1
     wait_for_systemd_active
   fi
@@ -554,9 +569,6 @@ deploy_release() {
   fi
   if ! promote_candidate_state; then
     candidate_compose stop app || true
-    if [[ "$systemd_disabled" == 1 ]]; then
-      systemctl enable "$SYSTEMD_SERVICE" || true
-    fi
     restore_previous_application ||
       die 'stable release promotion failed and the previous application could not be restored'
     die 'stable release promotion failed; previous application restored'
