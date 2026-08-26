@@ -10,7 +10,6 @@ services:
       - "${APP_PORT:-9001}:${APP_PORT:-9001}"
     environment:
       NODE_ENV: production
-      COZE_PROJECT_ENV: PROD
       HOSTNAME: 0.0.0.0
       PORT: "${APP_PORT:-9001}"
       DEPLOY_RUN_PORT: "${APP_PORT:-9001}"

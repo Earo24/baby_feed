@@ -1,14 +1,14 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 PORT=5000
 DEPLOY_RUN_PORT="${DEPLOY_RUN_PORT:-$PORT}"
 
 
 start_service() {
-    cd "${COZE_WORKSPACE_PATH}"
+    cd "${PROJECT_ROOT}"
     echo "Starting HTTP service on port ${DEPLOY_RUN_PORT} for deploy..."
     PORT=${DEPLOY_RUN_PORT} node dist/server.js
 }

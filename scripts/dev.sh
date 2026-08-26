@@ -3,11 +3,11 @@ set -Eeuo pipefail
 
 
 PORT=5000
-COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEPLOY_RUN_PORT="${DEPLOY_RUN_PORT:-${PORT}}"
 
 
-cd "${COZE_WORKSPACE_PATH}"
+cd "${PROJECT_ROOT}"
 
 kill_port_if_listening() {
     local pids

@@ -18,7 +18,6 @@ RUN pnpm prune --prod
 
 FROM node:20-bookworm-slim AS runner
 ENV NODE_ENV=production
-ENV COZE_PROJECT_ENV=PROD
 ENV HOSTNAME=0.0.0.0
 ENV PORT=9001
 ENV DEPLOY_RUN_PORT=9001
