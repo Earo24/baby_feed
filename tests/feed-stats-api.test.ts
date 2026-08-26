@@ -55,8 +55,10 @@ test('returns continuous daily trend with stable fields and room isolation', asy
   assert.equal(payload.data.granularity, 'day');
   assert.equal(payload.data.bucket_count, 3);
   assert.equal(payload.data.points.length, 3);
-  assert.deepEqual(Object.keys(payload.data.points[0]).sort(), ['events', 'feed_count', 'label', 'measured_count', 'period_start', 'total_ml']);
+  assert.deepEqual(Object.keys(payload.data.points[0]).sort(), ['average_daily_ml', 'events', 'feed_count', 'label', 'measured_count', 'measured_day_count', 'period_start', 'total_ml']);
   assert.equal(payload.data.points.at(-1).total_ml, 120);
+  assert.equal(payload.data.points.at(-1).average_daily_ml, 120);
+  assert.equal(payload.data.points.at(-1).measured_day_count, 1);
   assert.equal(payload.data.points.at(-1).feed_count, 2);
   assert.equal(payload.data.points.at(-1).measured_count, 1);
   assert.deepEqual(payload.data.points.at(-1).events, {

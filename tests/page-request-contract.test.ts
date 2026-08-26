@@ -70,6 +70,14 @@ test('samples long trend axis labels without dropping trend data points', () => 
   assert.match(trendSource, /<Line[\s\S]*dataKey="total_ml"/);
 });
 
+test('uses measured-day averages for weekly and monthly chart values', () => {
+  assert.match(trendSource, /average_daily_ml/);
+  assert.match(trendSource, /measured_day_count/);
+  assert.match(trendSource, /const volumeDataKey = granularity === 'day' \? 'total_ml' : 'average_daily_ml'/);
+  assert.match(trendSource, /平均每天奶量/);
+  assert.match(trendSource, /有奶量记录天数/);
+});
+
 test('renders feed volume trend inside the guarded history overlay', () => {
   assert.match(pageSource, /import\s+\{?\s*FeedVolumeTrend\s*\}?\s+from\s+['"]@\/components\/feed-volume-trend['"]/);
   assert.match(pageSource, /<FeedVolumeTrend\s+roomId=\{room\.id\}\s+todayTotalMl=\{todayTotalMl\}\s+refreshKey=\{feedTrendRefreshKey\}\s*\/>/);

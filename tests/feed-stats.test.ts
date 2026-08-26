@@ -46,8 +46,12 @@ test('week trend aggregates by Beijing Monday and returns continuous buckets', (
   const weekOfAug24 = points.find((point) => point.period_start === '2026-08-23T16:00:00.000Z')!;
   assert.equal(weekOfAug24.label, '8月24日');
   assert.equal(weekOfAug24.total_ml, 200);
+  assert.equal(weekOfAug24.measured_day_count, 2);
+  assert.equal(weekOfAug24.average_daily_ml, 100);
   const weekOfAug17 = points.find((point) => point.period_start === '2026-08-16T16:00:00.000Z')!;
   assert.equal(weekOfAug17.total_ml, 10);
+  assert.equal(weekOfAug17.measured_day_count, 1);
+  assert.equal(weekOfAug17.average_daily_ml, 10);
   assert.ok(points.every((point) => point.period_start && point.label));
 });
 
@@ -58,8 +62,14 @@ test('month trend handles Beijing month boundary', () => {
     { started_at: '2026-07-31T23:00:00.000Z', amount_ml: 5 }, // Aug 1 07:00 Beijing -> prior business month
     { started_at: '2026-08-25T00:00:00.000Z', amount_ml: 20 },
   ]);
-  assert.equal(points.find((point) => point.label === '2026年7月')!.total_ml, 45);
-  assert.equal(points.find((point) => point.label === '2026年8月')!.total_ml, 80);
+  const july = points.find((point) => point.label === '2026年7月')!;
+  const august = points.find((point) => point.label === '2026年8月')!;
+  assert.equal(july.total_ml, 45);
+  assert.equal(july.measured_day_count, 1);
+  assert.equal(july.average_daily_ml, 45);
+  assert.equal(august.total_ml, 80);
+  assert.equal(august.measured_day_count, 2);
+  assert.equal(august.average_daily_ml, 40);
 });
 
 test('getTrendPeriodStart applies Beijing business-day boundary to every granularity', () => {

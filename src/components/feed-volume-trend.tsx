@@ -34,6 +34,8 @@ interface FeedTrendPoint {
   period_start: string;
   label: string;
   total_ml: number;
+  average_daily_ml: number;
+  measured_day_count: number;
   feed_count: number;
   measured_count: number;
   events?: TrendEventCounts;
@@ -90,7 +92,7 @@ const SHARED_CHART_TOP_MARGIN = 56;
 const EVENT_PLOT_TOP = SHARED_CHART_TOP_MARGIN;
 
 const chartConfig = {
-  volume: { label: '奶量', color: '#E3B87A' },
+  volume: { label: '平均每天奶量', color: '#E3B87A' },
   feed_count: { label: '喂奶次数', color: '#A89888' },
   measured_count: { label: '有奶量记录次数', color: '#A89888' },
 } satisfies ChartConfig;
@@ -200,9 +202,11 @@ function TrendLineDot({ cx = 0, cy = 0, payload }: TrendLineDotProps) {
   );
 }
 
-type TrendTooltipProps = Pick<TooltipProps<number, string>, 'active' | 'payload'>;
+type TrendTooltipProps = Pick<TooltipProps<number, string>, 'active' | 'payload'> & {
+  granularity: Granularity;
+};
 
-function TrendTooltip({ active, payload }: TrendTooltipProps) {
+function TrendTooltip({ active, payload, granularity }: TrendTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload;
   if (!point) return null;
@@ -214,7 +218,13 @@ function TrendTooltip({ active, payload }: TrendTooltipProps) {
       style={{ backgroundColor: '#FFFCF8', borderColor: '#EDE5DC', color: '#3D3229' }}
     >
       <p className="mb-1 font-medium">{point.label}</p>
-      <p>总奶量：{point.total_ml} ml</p>
+      <p>{granularity === 'day' ? '当天奶量' : '平均每天奶量'}：{granularity === 'day' ? point.total_ml : point.average_daily_ml} ml</p>
+      {granularity !== 'day' ? (
+        <>
+          <p>周期总量：{point.total_ml} ml</p>
+          <p>有奶量记录天数：{point.measured_day_count} 天</p>
+        </>
+      ) : null}
       <p>喂奶次数：{point.feed_count} 次</p>
       <p>有奶量记录：{point.measured_count} 次</p>
       {EVENT_TYPES.slice(0, 3).map((event) =>
@@ -298,6 +308,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
   const retry = () => {
     setRetryNonce((value) => value + 1);
   };
+  const volumeDataKey = granularity === 'day' ? 'total_ml' : 'average_daily_ml';
 
   return (
     <section className="w-full min-w-0 overflow-hidden rounded-2xl bg-[#FFFCF8] p-4" aria-label="奶量趋势">
@@ -378,7 +389,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                 tick={{ fill: '#A89888', fontSize: 10 }}
                 tickFormatter={(value) => `${value}`}
               />
-              <ChartTooltip cursor={{ stroke: '#D9917A', strokeDasharray: '4 4' }} content={<TrendTooltip />} />
+              <ChartTooltip cursor={{ stroke: '#D9917A', strokeDasharray: '4 4' }} content={<TrendTooltip granularity={granularity} />} />
               <Line
                 dataKey="total_ml"
                 name="volume"
@@ -423,8 +434,8 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                 tick={{ fill: '#A89888', fontSize: 10 }}
                 tickFormatter={(value) => `${value}`}
               />
-              <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip />} />
-              <Bar dataKey="total_ml" name="volume" shape={<TrendBarWithEvents />}>
+              <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip granularity={granularity} />} />
+              <Bar dataKey={volumeDataKey} name="volume" shape={<TrendBarWithEvents />}>
                 {points.map((point) => (
                   <Cell
                     key={point.period_start}

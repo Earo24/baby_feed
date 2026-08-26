@@ -11,6 +11,8 @@ export interface FeedTrendPoint {
   period_start: string;
   label: string;
   total_ml: number;
+  average_daily_ml: number;
+  measured_day_count: number;
   feed_count: number;
   measured_count: number;
 }
@@ -107,6 +109,7 @@ export function buildFeedTrend(
   const currentKey = keyFor(granularity, now);
   const startKey = shiftKey(granularity, currentKey, -(count - 1));
   const points = new Map<string, FeedTrendPoint>();
+  const measuredDaysByPeriod = new Map<string, Set<string>>();
 
   for (let i = 0; i < count; i += 1) {
     const key = shiftKey(granularity, startKey, i);
@@ -114,6 +117,8 @@ export function buildFeedTrend(
       period_start: periodStart(granularity, key).toISOString(),
       label: labelFor(granularity, key),
       total_ml: 0,
+      average_daily_ml: 0,
+      measured_day_count: 0,
       feed_count: 0,
       measured_count: 0,
     });
@@ -129,7 +134,19 @@ export function buildFeedTrend(
     if (record.amount_ml !== null && Number.isFinite(record.amount_ml)) {
       point.total_ml += record.amount_ml;
       point.measured_count += 1;
+      const dayKey = getTrendPeriodStart('day', started);
+      const measuredDays = measuredDaysByPeriod.get(key) ?? new Set<string>();
+      measuredDays.add(dayKey);
+      measuredDaysByPeriod.set(key, measuredDays);
     }
+  }
+
+  for (const [key, point] of points) {
+    const measuredDayCount = measuredDaysByPeriod.get(key)?.size ?? 0;
+    point.measured_day_count = measuredDayCount;
+    point.average_daily_ml = measuredDayCount > 0
+      ? Math.round((point.total_ml / measuredDayCount) * 10) / 10
+      : 0;
   }
 
   return [...points.values()];
