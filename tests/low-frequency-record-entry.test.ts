@@ -47,21 +47,34 @@ test('promotes an active awake record to a direct home action', () => {
   assert.match(pageSource, />睡了<\/span>/);
 });
 
-test('keeps More open when the awake refresh fails', () => {
-  const fetchStart = pageSource.indexOf('const fetchRoom');
-  const fetchEnd = pageSource.indexOf('useEffect', fetchStart);
+test('coordinates awake sync retries without repeating a create request', () => {
   const start = pageSource.indexOf('const handleQuickAddAwake');
   const end = pageSource.indexOf('const handleEndAwake', start);
-  const fetchRoom = pageSource.slice(fetchStart, fetchEnd);
   const handler = pageSource.slice(start, end);
 
-  assert.ok(fetchStart >= 0 && fetchEnd > fetchStart);
   assert.ok(start >= 0 && end > start);
-  assert.match(fetchRoom, /if \(res.ok && json.success\)/);
-  assert.match(handler, /const roomRefreshed = await fetchRoom\(room.id\);/);
-  assert.match(
-    handler,
-    /if \(!roomRefreshed\) \{\s*setAwakeStartError\('记录失败，请重试'\);\s*return;\s*\}\s*setShowMoreRecords\(false\);/,
-  );
+  assert.match(pageSource, /const \[pendingAwakeStart, setPendingAwakeStart\] = useState<AwakeRecord \| null>\(null\)/);
+  assert.match(pageSource, /coordinateAwakeStart\(\{/);
+  assert.match(handler, /记录已保存，同步失败，请重试/);
+  assert.match(pageSource, /pendingAwakeStart \? '重试同步' : room\.activeAwake \? '清醒中' : '清醒'/);
   assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
+});
+
+test('keeps the More overlay outside an inert background and closes it with Escape', () => {
+  assert.match(pageSource, /<>\s*<div[^>]*inert=\{showMoreRecords\}/);
+  assert.match(pageSource, /<\/div>\s*\{showMoreRecords \? \(/);
+  assert.match(pageSource, /window\.addEventListener\('keydown', handleEscape\)/);
+  assert.match(pageSource, /window\.removeEventListener\('keydown', handleEscape\)/);
+  assert.doesNotMatch(pageSource, /autoFocus/);
+});
+
+test('scales only marked carousel labels and keeps the More divider aligned', () => {
+  const scalingStart = pageSource.indexOf('const updateBtnScales');
+  const scalingEnd = pageSource.indexOf('const checkBtnLoop', scalingStart);
+  const scalingSource = pageSource.slice(scalingStart, scalingEnd);
+
+  assert.match(scalingSource, /querySelectorAll(?:<HTMLElement>)?\('\[data-btn-label\]'\)/);
+  assert.doesNotMatch(scalingSource, /querySelectorAll\('span'\)/);
+  assert.match(scalingSource, /data-more-divider/);
+  assert.match(pageSource, /data-btn-label/);
 });

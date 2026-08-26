@@ -11,6 +11,17 @@ test('guards room refresh commits with the latest-request gate', () => {
   assert.match(pageSource, /requestState\.roomGate\.invalidate\(\)/);
 });
 
+test('keeps the current room on transient refresh failures and only leaves on 404', () => {
+  const start = pageSource.indexOf('const fetchRoom');
+  const end = pageSource.indexOf('useEffect', start);
+  const fetchRoomSource = pageSource.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(fetchRoomSource, /if \(res\.ok && json\.success\)/);
+  assert.match(fetchRoomSource, /if \(res\.status === 404\) \{[\s\S]*localStorage\.removeItem\('feedRoomId'\)[\s\S]*return false;/);
+  assert.match(fetchRoomSource, /if \(res\.status === 404\) \{[\s\S]*\}\s*return false;/);
+});
+
 test('uses one guarded five-type history snapshot loader for opening, range changes, and deletion', () => {
   assert.match(pageSource, /fetchHistorySnapshot</);
   assert.match(pageSource, /requestState\.historyGate\.begin/);

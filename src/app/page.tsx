@@ -6,7 +6,8 @@ import { Utensils } from 'lucide-react';
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
 import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
-import { getActionCarouselSetWidth } from '@/lib/action-carousel';
+import { getActionCarouselLoopPosition } from '@/lib/action-carousel';
+import { coordinateAwakeStart } from '@/lib/awake-start';
 import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
@@ -235,6 +236,7 @@ export default function Home() {
   const [showSolidFoodForm, setShowSolidFoodForm] = useState(false);
   const [showMoreRecords, setShowMoreRecords] = useState(false);
   const [awakeStartError, setAwakeStartError] = useState<string | null>(null);
+  const [pendingAwakeStart, setPendingAwakeStart] = useState<AwakeRecord | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFeeds, setHistoryFeeds] = useState<FeedRecord[]>([]);
   const [historySolidFoods, setHistorySolidFoods] = useState<SolidFoodRecord[]>([]);
@@ -299,8 +301,10 @@ export default function Home() {
         btn.style.width = `${size}px`;
         btn.style.height = `${size}px`;
         // Update font size proportionally (base 10px)
-        const labels = btn.querySelectorAll('span');
+        const labels = btn.querySelectorAll<HTMLElement>('[data-btn-label]');
         labels.forEach((label) => { label.style.fontSize = `${Math.round(10 * scale)}px`; });
+        const divider = btn.querySelector<HTMLElement>('[data-more-divider]');
+        if (divider) divider.style.height = `${Math.round((16 / baseSize) * size)}px`;
         // Update SVG icon sizes (use stored original or current)
         const svgs = btn.querySelectorAll('svg');
         svgs.forEach((svg) => {
@@ -323,17 +327,16 @@ export default function Home() {
     const container = btnScrollRef.current;
     if (!container) return;
     const itemWidth = 140;
-    const oneSet = getActionCarouselSetWidth(itemWidth);
-    const scrollLeft = container.scrollLeft;
-    const viewportCenter = scrollLeft + container.clientWidth / 2;
-    const currentSet = Math.floor(viewportCenter / oneSet);
-    if (currentSet !== 1) {
+    const loopPosition = getActionCarouselLoopPosition(
+      container.scrollLeft,
+      container.clientWidth,
+      itemWidth,
+    );
+    if (loopPosition.currentSet !== 1) {
       btnLoopJumping.current = true;
-      const offsetInSet = viewportCenter - currentSet * oneSet;
-      const newCenter = oneSet + offsetInSet;
       // Disable snap during jump to prevent stutter
       container.style.scrollSnapType = 'none';
-      container.scrollLeft = newCenter - container.clientWidth / 2;
+      container.scrollLeft = loopPosition.middleSetScrollLeft;
       requestAnimationFrame(() => {
         updateBtnScales();
         requestAnimationFrame(() => {
@@ -365,7 +368,8 @@ export default function Home() {
         requestState.setActiveRoomId(roomId);
         setRoom(json.data);
         return true;
-      } else {
+      }
+      if (res.status === 404) {
         requestState.setActiveRoomId(null);
         requestState.setHistoryOpen(false);
         requestState.historyGate.invalidate();
@@ -375,8 +379,8 @@ export default function Home() {
         localStorage.removeItem('feedRoomId');
         setShowSetup(true);
         setRoom(null);
-        return false;
       }
+      return false;
     } catch {
       /* keep existing data */
       return false;
@@ -405,7 +409,8 @@ export default function Home() {
       // Find the feed button in the middle set (set index 1)
       const feedItems = container.querySelectorAll<HTMLElement>('[data-btn-type="feed"]');
       if (feedItems.length >= 2) {
-        feedItems[1].scrollIntoView({ inline: 'center', behavior: 'auto' });
+        const middleFeed = feedItems[1];
+        container.scrollLeft = middleFeed.offsetLeft + middleFeed.offsetWidth / 2 - container.clientWidth / 2;
       }
       requestAnimationFrame(updateBtnScales);
     };
@@ -415,6 +420,13 @@ export default function Home() {
     window.addEventListener('resize', onResize);
     return () => { clearTimeout(t1); clearTimeout(t2); window.removeEventListener('resize', onResize); };
   }, [room?.id, updateBtnScales]);
+
+  useEffect(() => {
+    if (!pendingAwakeStart || !room?.activeAwake) return;
+    setPendingAwakeStart(null);
+    setAwakeStartError(null);
+    setShowMoreRecords(false);
+  }, [pendingAwakeStart, room?.activeAwake]);
 
   // Update active awake duration every second
   useEffect(() => {
@@ -660,6 +672,15 @@ export default function Home() {
     setShowMoreRecords(false);
   };
 
+  useEffect(() => {
+    if (!showMoreRecords) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') handleCloseMoreRecords();
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showMoreRecords, submitting]);
+
   // Medication handlers
   const handleQuickAddMed = () => {
     if (!room || submitting) return;
@@ -717,23 +738,34 @@ export default function Home() {
     setAwakeStartError(null);
     haptic('heavy');
     try {
-      const now = new Date();
-      const res = await fetch(`/api/rooms/${room.id}/awakes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recorder_name: feederName || null, started_at: now.toISOString() }),
+      const result = await coordinateAwakeStart({
+        pendingRecord: pendingAwakeStart,
+        createRecord: async () => {
+          const now = new Date();
+          const res = await fetch(`/api/rooms/${room.id}/awakes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recorder_name: feederName || null, started_at: now.toISOString() }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.success || !json.data) throw new Error('awake create failed');
+          return json.data as AwakeRecord;
+        },
+        refreshRoom: () => fetchRoom(room.id),
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+
+      if (result.status === 'create-failed') {
         setAwakeStartError('记录失败，请重试');
         return;
       }
-      setFeedTrendRefreshNonce((value) => value + 1);
-      const roomRefreshed = await fetchRoom(room.id);
-      if (!roomRefreshed) {
-        setAwakeStartError('记录失败，请重试');
+      if (result.status === 'sync-failed') {
+        setPendingAwakeStart(result.record);
+        setAwakeStartError('记录已保存，同步失败，请重试');
         return;
       }
+      if (result.created) setFeedTrendRefreshNonce((value) => value + 1);
+      setPendingAwakeStart(null);
+      setAwakeStartError(null);
       setShowMoreRecords(false);
     } catch {
       setAwakeStartError('记录失败，请重试');
@@ -930,7 +962,8 @@ export default function Home() {
     .join('|')}`;
 
   return (
-    <div className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
+    <>
+    <div inert={showMoreRecords} className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
       {/* Header - minimal */}
       <div className="px-5 pt-4 pb-2 flex items-center justify-between">
         <span className="text-sm font-medium" style={{ color: '#3D3229' }}>{room.name}</span>
@@ -1112,10 +1145,10 @@ export default function Home() {
                 >
                   <span aria-hidden="true" className="flex items-center gap-1">
                     <span data-more-preview="awake"><EyeOpenIcon size={15} color="#6F9B78" /></span>
-                    <span className="h-4 w-px" style={{ backgroundColor: '#D8CEC4' }} />
+                    <span data-more-divider className="h-4 w-px" style={{ backgroundColor: '#D8CEC4' }} />
                     <span data-more-preview="medication"><PillIcon size={15} color="#7F96A5" /></span>
                   </span>
-                  <span className="text-[10px] font-medium">更多</span>
+                  <span data-btn-label className="text-[10px] font-medium">更多</span>
                 </button>
               </div>
 
@@ -1129,7 +1162,7 @@ export default function Home() {
                   style={{ backgroundColor: '#C4A882', width: 70, height: 70 }}
                 >
                   <PoopIcon size={16} color="white" />
-                  <span className="text-[10px]">便便</span>
+                  <span data-btn-label className="text-[10px]">便便</span>
                 </button>
               </div>
 
@@ -1148,7 +1181,7 @@ export default function Home() {
                     <path d="M12 14v4"/>
                     <path d="M10 16h4"/>
                   </svg>
-                  <span className="text-[10px]">{submitting ? '记录中' : '喂奶了'}</span>
+                  <span data-btn-label className="text-[10px]">{submitting ? '记录中' : '喂奶了'}</span>
                 </button>
               </div>
 
@@ -1162,66 +1195,13 @@ export default function Home() {
                   style={{ backgroundColor: '#6F9B78', width: 70, height: 70 }}
                 >
                   <Utensils size={16} />
-                  <span className="text-[10px]">辅食</span>
+                  <span data-btn-label className="text-[10px]">辅食</span>
                 </button>
               </div>
             </Fragment>
           ))}
         </div>
       </div>
-
-      {showMoreRecords ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
-          onClick={handleCloseMoreRecords}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="more-records-title"
-            className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
-            style={{ backgroundColor: '#FFF9F2' }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <span id="more-records-title" className="text-base font-medium" style={{ color: '#3D3229' }}>更多记录</span>
-              <button type="button" aria-label="关闭更多记录" onClick={handleCloseMoreRecords} className="p-1">
-                <CloseIcon size={18} color="#BFB3A8" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleQuickAddAwake}
-                disabled={submitting || Boolean(room.activeAwake)}
-                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
-                style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
-              >
-                <EyeOpenIcon size={24} />
-                <span className="text-sm font-medium">{room.activeAwake ? '清醒中' : '清醒'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenMedicationFromMore}
-                disabled={submitting}
-                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
-                style={{ backgroundColor: '#EEF1F3', color: '#758C9A' }}
-              >
-                <PillIcon size={24} />
-                <span className="text-sm font-medium">吃药</span>
-              </button>
-            </div>
-
-            {awakeStartError ? (
-              <p role="alert" className="mt-4 text-center text-sm" style={{ color: '#C96F5B' }}>
-                {awakeStartError}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
 
       {showSolidFoodForm ? (
         <SolidFoodForm
@@ -1913,5 +1893,59 @@ export default function Home() {
         </div>
       )}
     </div>
+
+    {showMoreRecords ? (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center"
+        style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+        onClick={handleCloseMoreRecords}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="more-records-title"
+          className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
+          style={{ backgroundColor: '#FFF9F2' }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="mb-5 flex items-center justify-between">
+            <span id="more-records-title" className="text-base font-medium" style={{ color: '#3D3229' }}>更多记录</span>
+            <button type="button" aria-label="关闭更多记录" onClick={handleCloseMoreRecords} className="p-1">
+              <CloseIcon size={18} color="#BFB3A8" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleQuickAddAwake}
+              disabled={submitting || Boolean(room.activeAwake)}
+              className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
+              style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
+            >
+              <EyeOpenIcon size={24} />
+              <span className="text-sm font-medium">{pendingAwakeStart ? '重试同步' : room.activeAwake ? '清醒中' : '清醒'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenMedicationFromMore}
+              disabled={submitting}
+              className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
+              style={{ backgroundColor: '#EEF1F3', color: '#758C9A' }}
+            >
+              <PillIcon size={24} />
+              <span className="text-sm font-medium">吃药</span>
+            </button>
+          </div>
+
+          {awakeStartError ? (
+            <p role="alert" className="mt-4 text-center text-sm" style={{ color: '#C96F5B' }}>
+              {awakeStartError}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
