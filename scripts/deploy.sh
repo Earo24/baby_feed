@@ -30,6 +30,11 @@ require_uint() {
   [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer"
 }
 
+require_port() {
+  [[ "$2" =~ ^[1-9][0-9]{0,4}$ ]] || die "$1 must be between 1 and 65535"
+  (( 10#$2 <= 65535 )) || die "$1 must be between 1 and 65535"
+}
+
 validate_config() {
   [[ -n "$DEPLOY_TARGET" ]] || die 'DEPLOY_TARGET is required in .env.deploy'
   [[ "$DEPLOY_TARGET" != -* && "$DEPLOY_TARGET" != *$'\n'* && "$DEPLOY_TARGET" != *' '* ]] ||
@@ -40,7 +45,7 @@ validate_config() {
     "$DEPLOY_DIR" == */.. || "$DEPLOY_DIR" == */. ]]; then
     die 'DEPLOY_DIR is invalid'
   fi
-  require_uint APP_PORT "$APP_PORT"
+  require_port APP_PORT "$APP_PORT"
   require_uint BACKUP_KEEP "$BACKUP_KEEP"
   require_uint IMAGE_KEEP "$IMAGE_KEEP"
   require_uint HEALTH_TIMEOUT "$HEALTH_TIMEOUT"
@@ -102,10 +107,12 @@ check_environment() {
 }
 
 deploy_release() {
-  local full_sha short_sha image archive remote_prefix
+  local full_sha short_sha image archive remote_prefix untracked
 
   git -C "$PROJECT_ROOT" diff --quiet || die 'tracked working tree changes must be committed before deploy'
   git -C "$PROJECT_ROOT" diff --cached --quiet || die 'staged changes must be committed before deploy'
+  untracked="$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard)"
+  [[ -z "$untracked" ]] || die 'non-ignored untracked files must be committed before deploy'
 
   full_sha="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
   [[ "$full_sha" =~ ^[0-9a-fA-F]{12,64}$ ]] || die 'git commit SHA is invalid'
