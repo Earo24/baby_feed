@@ -78,7 +78,11 @@ function shouldShowXAxisLabel(
     return index % 10 === 0 || index === pointCount - 1;
   }
 
-  if ((granularity === 'week' || granularity === 'month') && pointCount > 6) {
+  if (granularity === 'month' && pointCount > 6) {
+    return index % 3 === 0 || index === pointCount - 1;
+  }
+
+  if (granularity === 'week' && pointCount > 6) {
     return index % 2 === 0 || index === pointCount - 1;
   }
 

@@ -52,7 +52,9 @@ test('feed volume trend component exposes the three granularity controls and sta
 
 test('samples long trend axis labels without dropping trend data points', () => {
   assert.match(trendSource, /granularity === 'day' && pointCount > 30/);
-  assert.match(trendSource, /\(granularity === 'week' \|\| granularity === 'month'\) && pointCount > 6/);
+  assert.match(trendSource, /granularity === 'month' && pointCount > 6/);
+  assert.match(trendSource, /granularity === 'week' && pointCount > 6/);
+  assert.match(trendSource, /index % 3 === 0 \|\| index === pointCount - 1/);
   assert.match(trendSource, /index % 2 === 0 \|\| index === pointCount - 1/);
   assert.match(trendSource, /<BarChart data=\{points\}/);
 });
