@@ -36,7 +36,7 @@ TEMP_FILES=()
 
 cleanup_temp_files() {
   local filename
-  for filename in "${TEMP_FILES[@]}"; do
+  for filename in "${TEMP_FILES[@]-}"; do
     if [[ -f "$filename" && "$filename" == "$STABLE_DIR"/.* ]]; then
       rm -f -- "$filename"
     elif [[ -f "$filename" && "$filename" == /tmp/* ]]; then
@@ -325,6 +325,104 @@ restore_previous_application() {
   fi
 }
 
+cleanup_backups() {
+  local -a backups=()
+  local remove_count index
+  while IFS= read -r backup; do
+    [[ -n "$backup" ]] && backups+=("$backup")
+  done < <(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name '20??????T??????Z-*' -print | sort)
+  remove_count=$((${#backups[@]} - BACKUP_KEEP))
+  (( remove_count > 0 )) || return 0
+  for ((index = 0; index < remove_count; index += 1)); do
+    rm -rf -- "${backups[$index]}"
+  done
+}
+
+cleanup_images() {
+  local current previous kept=0 tag
+  current="$(release_value CURRENT_IMAGE)"
+  previous="$(release_value PREVIOUS_IMAGE)"
+  while IFS= read -r tag; do
+    [[ -n "$tag" ]] || continue
+    if [[ "$tag" == "$current" || "$tag" == "$previous" ]]; then
+      kept=$((kept + 1))
+    elif (( kept < IMAGE_KEEP )); then
+      kept=$((kept + 1))
+    else
+      docker rmi "$tag" >/dev/null 2>&1 || log "warning: could not remove old image ${tag}"
+    fi
+  done < <(docker images --filter 'reference=baby-feed:*' --format '{{.Repository}}:{{.Tag}}' | awk '!seen[$0]++')
+}
+
+cleanup_release_artifacts() {
+  cleanup_backups || log 'warning: could not remove old data backups'
+  cleanup_images || log 'warning: could not remove old Docker images'
+}
+
+rollback_release() {
+  local current previous saved_release rollback_release_file backup_path
+  require_release_directories
+  acquire_lock
+  detect_application_state
+  [[ "$PREDEPLOY_MODE" == docker ]] || die 'manual Docker rollback requires an active Docker application'
+  current="$(release_value CURRENT_IMAGE)"
+  previous="$(release_value PREVIOUS_IMAGE)"
+  [[ "$current" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || die 'the current release image is invalid'
+  [[ "$previous" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || die 'no previous successful Docker image is available'
+  [[ "$previous" != "$current" ]] || die 'no previous successful Docker image is available'
+  docker image inspect "$previous" >/dev/null || die 'the previous Docker image is not available locally'
+
+  new_stable_temp_file saved_release rollback-release
+  cp "$RELEASE_ENV" "$saved_release"
+  if ! stable_compose stop app; then
+    if docker_application_is_active; then
+      die 'failed to stop Docker; the current application remains active'
+    fi
+    if stable_compose up -d --force-recreate app && wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"; then
+      die 'Docker stop failed after stopping the app; the current application was restored'
+    fi
+    die 'Docker stop failed and the current application could not be restored'
+  fi
+
+  if ! backup_path="$(backup_data "$current")"; then
+    stable_compose up -d --force-recreate app && wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE" ||
+      die 'database backup failed and the current application could not be restored'
+    die 'database backup failed; current application restored'
+  fi
+
+  new_stable_temp_file rollback_release_file rollback-state
+  write_release_env_file "$rollback_release_file" "$previous" "$current"
+  if ! atomic_install "$rollback_release_file" "$RELEASE_ENV" 0600; then
+    stable_compose up -d --force-recreate app && wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE" ||
+      die 'rollback state could not be written and the current application could not be restored'
+    die 'rollback state could not be written; current application restored'
+  fi
+
+  if ! stable_compose up -d --force-recreate app; then
+    atomic_install "$saved_release" "$RELEASE_ENV" 0600 ||
+      die 'rollback target failed to start and release state could not be restored'
+    if ! stable_compose up -d --force-recreate app ||
+      ! wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"; then
+      die 'rollback target and original application both failed to start'
+    fi
+    die 'rollback target failed to start; original application restored'
+  fi
+  if wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"; then
+    cleanup_release_artifacts
+    log "application rolled back to ${previous}; backup: ${backup_path}"
+    return 0
+  fi
+
+  stable_compose stop app || true
+  atomic_install "$saved_release" "$RELEASE_ENV" 0600 ||
+    die 'rollback target failed health checks and release state could not be restored'
+  if ! stable_compose up -d --force-recreate app ||
+    ! wait_for_health "$RELEASE_ENV" "$COMPOSE_FILE"; then
+    die 'rollback target and original application both failed health checks'
+  fi
+  die 'rollback target failed health checks; original application restored'
+}
+
 validate_incoming_artifact() {
   local label="$1" source="$2" variable_name="$3" canonical
   [[ "$source" == /* && "$source" != *$'\n'* ]] || die "${label} must be an absolute path"
@@ -432,6 +530,7 @@ deploy_release() {
   fi
 
   log "release healthy: ${new_image}; backup: ${backup_path}"
+  cleanup_release_artifacts
   if ! rm -f -- "$archive" "$compose_source"; then
     log 'warning: release succeeded but incoming artifacts could not be removed'
   fi
@@ -455,7 +554,8 @@ main() {
       deploy_release "$2" "$3" "$4"
       ;;
     rollback)
-      die 'rollback is not available until the rollback task is implemented'
+      [[ "$#" == 1 ]] || die 'usage: remote-release.sh rollback'
+      rollback_release
       ;;
     *)
       die 'usage: remote-release.sh [check|prepare-upload|deploy|rollback]'

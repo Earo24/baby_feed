@@ -20,8 +20,11 @@ import { createFakeCommands } from './deploy-test-helpers';
 
 type FixtureOptions = {
   backupFinalizeFails?: boolean;
+  backupKeep?: number;
+  composeUpFailures?: number;
   dockerActive?: boolean;
   fixedTimestamp?: string;
+  healthSequence?: string[];
   httpHealthy?: boolean;
   stopFails?: boolean;
   systemdActive?: boolean;
@@ -63,13 +66,18 @@ function createFixture(options: FixtureOptions = {}) {
     DEPLOY_DIR: root,
     DEPLOY_TEST_LOG: logFile,
     FAKE_BACKUP_FINALIZE_FAIL: options.backupFinalizeFails ? '1' : '0',
+    BACKUP_KEEP: options.backupKeep ? String(options.backupKeep) : '10',
+    FAKE_COMPOSE_UP_FAILURES: options.composeUpFailures ? String(options.composeUpFailures) : '0',
     FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
+    FAKE_HEALTH_SEQUENCE: options.healthSequence?.join(',') ?? '',
     FAKE_HTTP_HEALTH: options.httpHealthy === false ? '0' : '1',
+    FAKE_IMAGE_LIST: '',
     FAKE_RUNNING_IMAGE: '',
     FAKE_STOP_FAIL: options.stopFails ? '1' : '0',
     FAKE_SYSTEMD_ACTIVE: options.systemdActive === false ? '0' : '1',
     FAKE_TAR_FAIL: options.tarFails ? '1' : '0',
     FAKE_TIMESTAMP: options.fixedTimestamp ?? '',
+    FAKE_STATE_DIR: root,
     HEALTH_TIMEOUT: '1',
     PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
     STABLE_COMPOSE_FILE: path.join(root, 'deploy', 'compose.yaml'),
@@ -111,6 +119,20 @@ function createFixture(options: FixtureOptions = {}) {
         .filter((name) => name !== './')
         .sort();
     },
+    backupCount() {
+      return readdirSync(path.join(root, 'backups')).filter((name) => !name.includes('.partial.'))
+        .length;
+    },
+    validBackupCount() {
+      return readdirSync(path.join(root, 'backups')).filter((name) =>
+        /^20\d{6}T\d{6}Z-/.test(name),
+      ).length;
+    },
+    remainingNonReleaseBackupNames() {
+      return readdirSync(path.join(root, 'backups'))
+        .filter((name) => !/^20\d{6}T\d{6}Z-/.test(name))
+        .sort();
+    },
     dataDigest() {
       const hash = createHash('sha256');
       for (const name of readdirSync(dataDirectory).sort()) {
@@ -136,6 +158,9 @@ function createFixture(options: FixtureOptions = {}) {
     setRunningImage(image: string) {
       env.FAKE_RUNNING_IMAGE = image;
     },
+    setImageList(images: string[]) {
+      env.FAKE_IMAGE_LIST = images.join('\n');
+    },
     writeReleaseState(current: string, previous: string) {
       writeFileSync(
         path.join(root, 'deploy', 'release.env'),
@@ -154,6 +179,7 @@ function createFixture(options: FixtureOptions = {}) {
       );
       env.FAKE_DOCKER_ACTIVE = '1';
       env.FAKE_RUNNING_IMAGE = current;
+      env.FAKE_AVAILABLE_IMAGES = `${current},${previous}`;
     },
     createBackupCollision(timestamp: string, label = 'systemd') {
       env.FAKE_TIMESTAMP = timestamp;
@@ -161,6 +187,13 @@ function createFixture(options: FixtureOptions = {}) {
       mkdirSync(destination);
       writeFileSync(path.join(destination, 'existing-marker'), 'keep');
       return destination;
+    },
+    createBackups(names: string[]) {
+      for (const name of names) {
+        const destination = path.join(root, 'backups', name);
+        mkdirSync(destination);
+        writeFileSync(path.join(destination, 'metadata'), `created_at=${name}\n`);
+      }
     },
     replaceDataWithExternalSymlink() {
       const external = mkdtempSync(path.join(os.tmpdir(), 'baby-feed-external-data-'));
@@ -368,4 +401,51 @@ test('bounds each HTTP health request by the remaining health timeout', () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(fixture.commandLog(), /curl\|--connect-timeout 1 --max-time 1 --fail/);
+});
+
+test('restores the prior image state without restoring SQLite when health fails', () => {
+  const fixture = createFixture({ systemdActive: false, healthSequence: ['unhealthy', 'healthy'] });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  const before = fixture.dataDigest();
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+  assert.equal(fixture.releaseValue('PREVIOUS_IMAGE'), 'baby-feed:0000000');
+  assert.equal(fixture.dataDigest(), before);
+  assert.equal(fixture.commandLog().match(/compose[^\n]*up -d/g)?.length, 2);
+});
+
+test('manual rollback backs up current data and swaps successful image tags', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+  assert.equal(fixture.releaseValue('PREVIOUS_IMAGE'), 'baby-feed:2222222');
+  assert.equal(fixture.backupCount(), 1);
+});
+
+test('restores the prior release state when Compose cannot start the candidate', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true, composeUpFailures: 1 });
+  fixture.writeReleaseState('baby-feed:1111111', 'baby-feed:0000000');
+  const result = fixture.run('deploy', 'baby-feed:2222222', fixture.archive, fixture.compose);
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+  assert.equal(fixture.releaseValue('PREVIOUS_IMAGE'), 'baby-feed:0000000');
+  assert.match(fixture.commandLog(), /docker\|compose.*up -d.*app/);
+});
+
+test('retention removes only excess valid backup directories', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true, backupKeep: 2 });
+  fixture.createBackups([
+    '20260820T010101Z-old',
+    '20260821T010101Z-old',
+    '20260822T010101Z-old',
+    'keep-me',
+  ]);
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  assert.equal(fixture.run('rollback').status, 0);
+  assert.deepEqual(fixture.remainingNonReleaseBackupNames(), ['keep-me']);
+  assert.equal(fixture.validBackupCount(), 2);
+  assert.equal(fixture.commandLog().includes('docker|system prune'), false);
 });

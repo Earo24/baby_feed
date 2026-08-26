@@ -8,21 +8,48 @@ printf '%s|%s\\n' "$name" "$*" >> "$DEPLOY_TEST_LOG"
 case "$name:$1" in
   docker:load) cat >/dev/null; echo 'Loaded image';;
   docker:image)
-    if [[ "\${2:-}" == inspect ]]; then echo "\${FAKE_IMAGE_ARCH:-amd64}"; fi
+    if [[ "\${2:-}" == inspect ]]; then
+      if [[ "$*" == *"--format"* ]]; then
+        echo "\${FAKE_IMAGE_ARCH:-amd64}"
+      else
+        image="\${!#}"
+        available=",\${FAKE_AVAILABLE_IMAGES:-baby-feed:1111111,baby-feed:0000000},"
+        [[ "$available" == *",$image,"* ]]
+      fi
+    fi
     ;;
   docker:compose)
     if [[ "$*" == *" stop app"* && "\${FAKE_STOP_FAIL:-0}" == 1 ]]; then exit 1; fi
+    if [[ "$*" == *" up -d"* ]]; then
+      failures="\${FAKE_COMPOSE_UP_FAILURES:-0}"
+      counter_file="\${FAKE_STATE_DIR:-/tmp}/fake-compose-up-count"
+      if [[ -f "$counter_file" ]]; then count="$(<"$counter_file")"; else count=0; fi
+      if (( count < failures )); then
+        printf '%s\n' "$((count + 1))" >"$counter_file"
+        exit 1
+      fi
+    fi
     if [[ "$*" == *" ps -q app"* ]]; then echo baby-feed-test-container; fi
     ;;
   docker:inspect)
     if [[ "$*" == *".Config.Image"* ]]; then
       echo "\${FAKE_RUNNING_IMAGE:-baby-feed:1111111}"
     else
-      echo "\${FAKE_CONTAINER_HEALTH:-healthy}"
+      sequence="\${FAKE_HEALTH_SEQUENCE:-}"
+      if [[ -n "$sequence" ]]; then
+        counter_file="\${FAKE_STATE_DIR:-/tmp}/fake-health-count"
+        if [[ -f "$counter_file" ]]; then count="$(<"$counter_file")"; else count=0; fi
+        IFS=',' read -r -a statuses <<< "$sequence"
+        index=$((count < \${#statuses[@]} ? count : \${#statuses[@]} - 1))
+        printf '%s\n' "$((count + 1))" >"$counter_file"
+        echo "\${statuses[$index]}"
+      else
+        echo "\${FAKE_CONTAINER_HEALTH:-healthy}"
+      fi
     fi
-    ;;
+  ;;
   docker:ps) [[ "\${FAKE_DOCKER_ACTIVE:-0}" == 1 ]] && echo baby-feed-running;;
-  docker:images) :;;
+  docker:images) printf '%s\n' "\${FAKE_IMAGE_LIST:-}";;
   docker:rmi) :;;
   systemctl:is-active) [[ "\${FAKE_SYSTEMD_ACTIVE:-1}" == 1 ]];;
   systemctl:stop) [[ "\${FAKE_STOP_FAIL:-0}" != 1 ]];;
