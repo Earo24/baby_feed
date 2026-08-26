@@ -197,6 +197,10 @@ export function getFeeds(roomId: string, startIso?: string, limit = 500): FeedRo
     FROM feed_records WHERE room_id = ? ORDER BY started_at DESC LIMIT ?`).all(roomId, limit) as FeedRow[];
 }
 
+export function getFeedTrendRecords(roomId: string, startIso: string): Array<Pick<FeedRow, 'started_at' | 'amount_ml'>> {
+  return getDatabase().prepare(`SELECT started_at, amount_ml FROM feed_records WHERE room_id = ? AND started_at >= ? ORDER BY started_at ASC`).all(roomId, startIso) as Array<Pick<FeedRow, 'started_at' | 'amount_ml'>>;
+}
+
 export function getLastFeed(roomId: string): Pick<FeedRow, 'id' | 'feed_type' | 'started_at' | 'amount_ml'> | undefined {
   return getDatabase().prepare('SELECT id, feed_type, started_at, amount_ml FROM feed_records WHERE room_id = ? ORDER BY started_at DESC LIMIT 1').get(roomId) as Pick<FeedRow, 'id' | 'feed_type' | 'started_at' | 'amount_ml'> | undefined;
 }
