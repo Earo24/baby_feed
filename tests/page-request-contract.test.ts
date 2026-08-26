@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const pageSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+const trendSource = readFileSync(new URL('../src/components/feed-volume-trend.tsx', import.meta.url), 'utf8');
 
 test('guards room refresh commits with the latest-request gate', () => {
   assert.match(pageSource, /requestState\.roomGate\.begin\(roomId\)/);
@@ -39,4 +40,12 @@ test('refreshes after deletion from the context current when deletion finishes',
   assert.match(handlerSource, /loadHistorySnapshot\(context\.roomId, context\.days\)/);
   assert.doesNotMatch(handlerSource, /(?<!\.)\bshowHistory\b/);
   assert.doesNotMatch(handlerSource, /(?<!\.)\bhistoryDays\b/);
+});
+
+test('feed volume trend component exposes the three granularity controls and stats request contract', () => {
+  assert.match(trendSource, /按天/);
+  assert.match(trendSource, /按周/);
+  assert.match(trendSource, /按月/);
+  assert.match(trendSource, /feed-stats\?granularity=/);
+  assert.match(trendSource, /aria-pressed/);
 });
