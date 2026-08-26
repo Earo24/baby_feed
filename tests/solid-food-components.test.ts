@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -7,6 +8,8 @@ import {
   SolidFoodRecordRow,
 } from '../src/components/solid-food';
 import { SwipeToDelete } from '../src/components/swipe-to-delete';
+
+const solidFoodSource = readFileSync(new URL('../src/components/solid-food.tsx', import.meta.url), 'utf8');
 
 test('renders solid-food record details', () => {
   const now = new Date('2026-08-25T04:31:00.000Z');
@@ -57,4 +60,10 @@ test('keeps the contextual delete action out of the closed-state tab order', () 
   assert.match(markup, /aria-label="删除辅食记录：米糊，12:30"[^>]*tabindex="-1"/);
   assert.match(markup, /class="[^"]*absolute right-0 top-0 bottom-0 flex w-20/);
   assert.match(markup, /aria-hidden="true" class="pointer-events-none/);
+});
+
+test('keeps the solid-food drawer keyboard-safe', () => {
+  assert.match(solidFoodSource, /<Drawer\s+open[\s\S]*fixed\s*\n\s*repositionInputs/);
+  assert.match(solidFoodSource, /FieldGroup className="[^\"]*min-h-0 flex-1[^\"]*overflow-y-auto[^\"]*pb-/);
+  assert.match(solidFoodSource, /<DrawerFooter className="[^\"]*shrink-0/);
 });

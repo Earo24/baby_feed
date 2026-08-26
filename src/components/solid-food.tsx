@@ -182,6 +182,8 @@ export function SolidFoodForm({
   return (
     <Drawer
       open
+      fixed
+      repositionInputs
       onOpenChange={(open) => {
         if (!open && !submitting) onClose();
       }}
@@ -215,7 +217,7 @@ export function SolidFoodForm({
         </DrawerHeader>
 
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit} noValidate>
-          <FieldGroup className="min-h-0 flex-1 gap-5 overflow-y-auto px-5 py-2">
+          <FieldGroup className="min-h-0 flex-1 gap-5 overflow-y-auto px-5 pb-5 pt-2">
             <Field data-invalid={nameInvalid}>
               <FieldLabel htmlFor="solid-food-name" style={{ color: '#8B7E74' }}>
                 食物名称
