@@ -49,3 +49,8 @@ test('feed volume trend component exposes the three granularity controls and sta
   assert.match(trendSource, /feed-stats\?granularity=/);
   assert.match(trendSource, /aria-pressed/);
 });
+
+test('renders feed volume trend inside the guarded history overlay', () => {
+  assert.match(pageSource, /import\s+\{?\s*FeedVolumeTrend\s*\}?\s+from\s+['"]@\/components\/feed-volume-trend['"]/);
+  assert.match(pageSource, /<FeedVolumeTrend\s+roomId=\{room\.id\}\s+todayTotalMl=\{todayTotalMl\}\s+refreshKey=\{feedTrendRefreshKey\}\s*\/>/);
+});

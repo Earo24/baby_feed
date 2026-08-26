@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { Utensils } from 'lucide-react';
 
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
+import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
 import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
@@ -855,6 +856,9 @@ export default function Home() {
   const todayTotalMl = room.feeds.reduce((sum, f) => sum + (f.amount_ml || 0), 0);
   const todayCount = room.feeds.length;
   const todaySolidFoodCount = room.solid_foods?.length || 0;
+  const feedTrendRefreshKey = room.feeds
+    .map((feed) => `${feed.id}:${feed.amount_ml ?? ''}:${feed.started_at}`)
+    .join('|');
 
   return (
     <div className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
@@ -1639,6 +1643,10 @@ export default function Home() {
             </button>
             <span className="text-base font-medium" style={{ color: '#3D3229' }}>历史记录</span>
             <div className="w-12" />
+          </div>
+
+          <div className="px-5 pb-2">
+            <FeedVolumeTrend roomId={room.id} todayTotalMl={todayTotalMl} refreshKey={feedTrendRefreshKey} />
           </div>
 
           <div className="flex gap-2 px-5 py-3 justify-center">
