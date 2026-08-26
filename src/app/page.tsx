@@ -489,7 +489,7 @@ export default function Home() {
       const startedAt = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, m);
       const res = await fetch(`/api/rooms/${room.id}/feeds`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feed_type: 'formula', feeder_name: feederName || null, amount_ml: editAmount, started_at: startedAt.toISOString() }) });
       const json = await res.json();
-      if (json.success) {
+      if (res.ok && json.success) {
         setFeedTrendRefreshNonce((value) => value + 1);
         await fetchRoom(room.id);
       }
@@ -503,7 +503,7 @@ export default function Home() {
     try {
       const res = await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) {
+      if (res.ok && json.success) {
         setFeedTrendRefreshNonce((value) => value + 1);
         await fetchRoom(room.id);
       }
@@ -665,8 +665,8 @@ export default function Home() {
         body: JSON.stringify({ recorder_name: feederName || null, medicine_name: medName || null, dosage: medDosage || null, started_at: startedAt.toISOString() }),
       });
       const json = await res.json();
-      setShowMedConfirm(false);
       if (res.ok && json.success) {
+        setShowMedConfirm(false);
         setFeedTrendRefreshNonce((value) => value + 1);
         await fetchRoom(room.id);
       }

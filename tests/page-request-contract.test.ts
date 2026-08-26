@@ -95,6 +95,30 @@ test('refreshes feed volume trend after feed mutations', () => {
   }
 });
 
+test('requires HTTP success before refreshing feed and closing medication confirmation', () => {
+  const handlerSource = (handlerName: string, nextDeclaration: string) => {
+    const handlerStart = pageSource.indexOf(`const ${handlerName} = async`);
+    const handlerEnd = pageSource.indexOf(nextDeclaration, handlerStart);
+    assert.ok(handlerStart >= 0, `missing ${handlerName}`);
+    assert.ok(handlerEnd > handlerStart, `could not slice ${handlerName}`);
+    return pageSource.slice(handlerStart, handlerEnd);
+  };
+
+  for (const [handlerName, nextDeclaration] of [
+    ['handleConfirm', 'const handleSkipConfirm'],
+    ['handleDeleteFeed', 'const handleQuickAddSolidFood'],
+  ] as const) {
+    assert.match(
+      handlerSource(handlerName, nextDeclaration),
+      /if \(res\.ok && json\.success\)/,
+      `${handlerName} should require an HTTP success response`,
+    );
+  }
+
+  const medicationHandler = handlerSource('handleConfirmMed', 'const handleDeleteMed');
+  assert.match(medicationHandler, /if \(res\.ok && json\.success\) \{[\s\S]*setShowMedConfirm\(false\)/);
+});
+
 test('declares the multi-record event labels and approved palette', () => {
   assert.match(trendSource, /便便/);
   assert.match(trendSource, /吃药/);
