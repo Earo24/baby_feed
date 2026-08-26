@@ -50,16 +50,18 @@ test('feed volume trend component exposes the three granularity controls and sta
   assert.match(trendSource, /aria-pressed/);
 });
 
+test('uses a 30-day daily trend range with evenly spaced mobile-safe labels', () => {
+  assert.match(trendSource, /day: 30/);
+  assert.match(trendSource, /granularity === 'day'/);
+  assert.match(trendSource, /const dayLabelStep = pointCount > 14 \? 5 : 1/);
+  assert.match(trendSource, /index % dayLabelStep === 0/);
+});
+
 test('samples long trend axis labels without dropping trend data points', () => {
-  assert.match(trendSource, /granularity === 'day' && pointCount > 30/);
   assert.match(trendSource, /granularity === 'month' && pointCount > 6/);
   assert.match(trendSource, /granularity === 'week' && pointCount > 6/);
   assert.match(trendSource, /index % 3 === 0 \|\| index === pointCount - 1/);
   assert.match(trendSource, /index % 2 === 0 \|\| index === pointCount - 1/);
-  assert.match(trendSource, /index % 20 === 0 && index !== lastRegularLabelIndex/);
-  assert.doesNotMatch(trendSource, /index % 10 === 0 \|\| index === pointCount - 1/);
-  assert.match(trendSource, /lastRegularLabelIndex = Math\.floor\(lastIndex \/ 20\) \* 20/);
-  assert.match(trendSource, /index !== lastRegularLabelIndex/);
   assert.match(trendSource, /<BarChart data=\{points\}/);
 });
 

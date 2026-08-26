@@ -54,7 +54,7 @@ export interface FeedVolumeTrendProps {
 }
 
 const RANGE_BY_GRANULARITY: Record<Granularity, number> = {
-  day: 90,
+  day: 30,
   week: 12,
   month: 12,
 };
@@ -102,10 +102,9 @@ function shouldShowXAxisLabel(
   index: number,
   pointCount: number,
 ): boolean {
-  if (granularity === 'day' && pointCount > 30) {
-    const lastIndex = pointCount - 1;
-    const lastRegularLabelIndex = Math.floor(lastIndex / 20) * 20;
-    return (index % 20 === 0 && index !== lastRegularLabelIndex) || index === lastIndex;
+  if (granularity === 'day') {
+    const dayLabelStep = pointCount > 14 ? 5 : 1;
+    return index % dayLabelStep === 0 || index === pointCount - 1;
   }
 
   if (granularity === 'month' && pointCount > 6) {
