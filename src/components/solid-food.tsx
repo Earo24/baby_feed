@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from 'react';
 import { Utensils, X } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -182,35 +181,31 @@ export function SolidFoodForm({
         role="dialog"
         aria-modal="true"
         aria-labelledby="solid-food-title"
-        className="mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl"
+        className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
         style={{ backgroundColor: '#FFF9F2', borderColor: '#EDE5DC' }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative flex shrink-0 flex-row items-start justify-between gap-4 px-5 pb-3 pt-2 text-left">
-          <div className="min-w-0">
-            <h2 id="solid-food-title" className="text-base" style={{ color: '#3D3229' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Utensils size={18} color="#6F9B78" />
+            <h2 id="solid-food-title" className="text-base font-medium" style={{ color: '#3D3229' }}>
               记录辅食
             </h2>
-            <p className="sr-only">
-              填写食物、分量和记录时间
-            </p>
           </div>
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            style={{ color: '#8B7E74' }}
+            className="p-1"
+            style={{ color: '#BFB3A8' }}
             aria-label="关闭辅食记录"
             disabled={submitting}
             onClick={onClose}
           >
-            <X data-icon="inline-start" />
-          </Button>
+            <X size={18} />
+          </button>
         </div>
 
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit} noValidate>
-          <FieldGroup className="min-h-0 flex-1 gap-5 overflow-y-auto px-5 pb-5 pt-2">
+        <form className="flex min-h-0 max-h-[calc(90dvh-7rem)] flex-col" onSubmit={handleSubmit} noValidate>
+          <FieldGroup className="min-h-0 flex-1 gap-4 overflow-y-auto">
             <Field data-invalid={nameInvalid}>
               <FieldLabel htmlFor="solid-food-name" style={{ color: '#8B7E74' }}>
                 食物名称
@@ -376,16 +371,16 @@ export function SolidFoodForm({
             {formError ? <FieldError style={{ color: '#E8836B' }}>{formError}</FieldError> : null}
           </FieldGroup>
 
-          <div className="mt-auto flex shrink-0 flex-col gap-2 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
-            <Button
+          <div className="mt-5 flex shrink-0 flex-col gap-2">
+            <button
               type="submit"
               disabled={submitting}
-              className="h-14 w-full text-base active:scale-[0.97]"
-              style={{ backgroundColor: '#6F9B78', color: '#FFFCF8' }}
+              className="w-full rounded-xl py-4 text-lg font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: '#6F9B78' }}
             >
               {submitting ? <Spinner data-icon="inline-start" /> : null}
               {submitting ? '保存中' : '确认'}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

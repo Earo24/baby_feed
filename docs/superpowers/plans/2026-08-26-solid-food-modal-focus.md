@@ -33,7 +33,7 @@ Expected: FAIL because the current source still contains `autoFocus`, `repositio
 
 - [ ] **Step 1: Replace only the shell and imports**
 
-Remove the `Drawer` imports and wrap the existing header/form/footer contents in:
+Remove the `Drawer` imports and wrap the existing header/form/footer contents in the same outer shell as the medication modal:
 
 ```tsx
 <div
@@ -42,7 +42,7 @@ Remove the `Drawer` imports and wrap the existing header/form/footer contents in
   onClick={onClose}
 >
   <div
-    className="w-full max-w-md rounded-t-2xl p-0"
+    className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
     style={{ backgroundColor: '#FFF9F2' }}
     onClick={(event) => event.stopPropagation()}
   >
@@ -51,7 +51,7 @@ Remove the `Drawer` imports and wrap the existing header/form/footer contents in
 </div>
 ```
 
-Keep the existing `max-h-[90dvh]`, `overflow-hidden`, padding, field gaps, colors, button height, and safe-area footer classes on the corresponding inner elements. Remove the `autoFocus` prop from `solid-food-name`. Keep close-button and backdrop close behavior guarded by `submitting`.
+Use the medication modal's title row, close-button treatment, field spacing, and rounded confirmation button, while retaining all solid-food fields and validation. Keep the inner form scrollable on short mobile viewports. Remove the `autoFocus` prop from `solid-food-name`. Keep close-button and backdrop close behavior guarded by `submitting`.
 
 - [ ] **Step 2: Run the focused test to verify it passes**
 
@@ -79,4 +79,3 @@ Use the Browser runtime against the local app. Verify page identity, non-blank r
 Run: `pnpm run build`.
 
 Expected: production build completes successfully.
-
