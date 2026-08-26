@@ -361,7 +361,7 @@ export default function Home() {
       const res = await fetch(`/api/rooms/${roomId}`);
       const json = await res.json();
       if (!requestState.roomGate.isLatest(requestToken)) return false;
-      if (json.success) {
+      if (res.ok && json.success) {
         requestState.setActiveRoomId(roomId);
         setRoom(json.data);
         return true;
