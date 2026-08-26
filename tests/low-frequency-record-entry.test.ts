@@ -53,14 +53,40 @@ test('coordinates awake sync retries without repeating a create request', () => 
   const handler = pageSource.slice(start, end);
 
   assert.ok(start >= 0 && end > start);
-  assert.match(pageSource, /const \[pendingAwakeStart, setPendingAwakeStart\] = useState<AwakeRecord \| null>\(null\)/);
+  assert.match(pageSource, /const \[pendingAwakeStart, setPendingAwakeStart\] = useState<PendingAwakeStart<AwakeRecord> \| null>\(null\)/);
+  assert.match(pageSource, /const currentRoomPendingAwake = room \? getPendingAwakeRecord\(pendingAwakeStart, room\.id\) : null;/);
   assert.match(pageSource, /coordinateAwakeStart\(\{/);
+  assert.match(handler, /pendingRecord: currentRoomPendingAwake/);
+  assert.match(handler, /setPendingAwakeStart\(\{ roomId: room\.id, record: result\.record \}\)/);
   assert.match(handler, /记录已保存，同步失败，请重试/);
   const trendRefresh = handler.indexOf('if (result.created) setFeedTrendRefreshNonce');
   const syncFailure = handler.indexOf("if (result.status === 'sync-failed')");
   assert.ok(trendRefresh >= 0 && trendRefresh < syncFailure);
-  assert.match(pageSource, /room\.activeAwake \? '清醒中' : pendingAwakeStart \? '重试同步' : '清醒'/);
+  assert.match(pageSource, /room\.activeAwake \? '清醒中' : currentRoomPendingAwake \? '重试同步' : '清醒'/);
   assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
+});
+
+test('clears pending awake sync state at room ownership boundaries', () => {
+  const handlerSource = (handlerName: string, nextDeclaration: string) => {
+    const start = pageSource.indexOf(`const ${handlerName}`);
+    const end = pageSource.indexOf(nextDeclaration, start);
+    assert.ok(start >= 0 && end > start, `could not slice ${handlerName}`);
+    return pageSource.slice(start, end);
+  };
+
+  assert.match(handlerSource('handleCreateRoom', 'const handleJoinRoom'), /setPendingAwakeStart\(null\);[\s\S]*setAwakeStartError\(null\);/);
+  assert.match(handlerSource('handleJoinRoom', 'const handleQuickAdd'), /setPendingAwakeStart\(null\);[\s\S]*setAwakeStartError\(null\);/);
+  assert.match(handlerSource('handleLeaveRoom', 'const handleOpenHistory'), /setPendingAwakeStart\(null\);[\s\S]*setAwakeStartError\(null\);/);
+
+  const fetchStart = pageSource.indexOf('const fetchRoom');
+  const fetchEnd = pageSource.indexOf('useEffect', fetchStart);
+  const fetchRoom = pageSource.slice(fetchStart, fetchEnd);
+  assert.match(fetchRoom, /if \(res\.status === 404\) \{[\s\S]*setPendingAwakeStart\(null\);[\s\S]*setAwakeStartError\(null\);/);
+});
+
+test('memoizes the More close handler for its Escape effect', () => {
+  assert.match(pageSource, /const handleCloseMoreRecords = useCallback\(\(\) => \{[\s\S]*\}, \[submitting\]\);/);
+  assert.match(pageSource, /\}, \[showMoreRecords, handleCloseMoreRecords\]\);/);
 });
 
 test('keeps the More overlay outside an inert background and closes it with Escape', () => {

@@ -7,7 +7,8 @@ import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
 import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
 import { getActionCarouselLoopPosition } from '@/lib/action-carousel';
-import { coordinateAwakeStart } from '@/lib/awake-start';
+import { coordinateAwakeStart, getPendingAwakeRecord } from '@/lib/awake-start';
+import type { PendingAwakeStart } from '@/lib/awake-start';
 import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
@@ -236,7 +237,7 @@ export default function Home() {
   const [showSolidFoodForm, setShowSolidFoodForm] = useState(false);
   const [showMoreRecords, setShowMoreRecords] = useState(false);
   const [awakeStartError, setAwakeStartError] = useState<string | null>(null);
-  const [pendingAwakeStart, setPendingAwakeStart] = useState<AwakeRecord | null>(null);
+  const [pendingAwakeStart, setPendingAwakeStart] = useState<PendingAwakeStart<AwakeRecord> | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [historyFeeds, setHistoryFeeds] = useState<FeedRecord[]>([]);
   const [historySolidFoods, setHistorySolidFoods] = useState<SolidFoodRecord[]>([]);
@@ -276,6 +277,7 @@ export default function Home() {
   const btnScrollRef = useRef<HTMLDivElement>(null);
   const btnLoopJumping = useRef(false);
   const btnScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentRoomPendingAwake = room ? getPendingAwakeRecord(pendingAwakeStart, room.id) : null;
 
   const updateBtnScales = useCallback(() => {
     const container = btnScrollRef.current;
@@ -376,6 +378,8 @@ export default function Home() {
         setHistoryLoading(false);
         setHistoryError(null);
         setShowHistory(false);
+        setPendingAwakeStart(null);
+        setAwakeStartError(null);
         localStorage.removeItem('feedRoomId');
         setShowSetup(true);
         setRoom(null);
@@ -422,11 +426,11 @@ export default function Home() {
   }, [room?.id, updateBtnScales]);
 
   useEffect(() => {
-    if (!pendingAwakeStart || !room?.activeAwake) return;
+    if (!currentRoomPendingAwake || !room?.activeAwake) return;
     setPendingAwakeStart(null);
     setAwakeStartError(null);
     setShowMoreRecords(false);
-  }, [pendingAwakeStart, room?.activeAwake]);
+  }, [currentRoomPendingAwake, room?.activeAwake]);
 
   // Update active awake duration every second
   useEffect(() => {
@@ -462,6 +466,8 @@ export default function Home() {
         setHistoryLoading(false);
         setHistoryError(null);
         setShowHistory(false);
+        setPendingAwakeStart(null);
+        setAwakeStartError(null);
         localStorage.setItem('feedRoomId', json.data.id);
         setRoom({ ...json.data, feeds: [], poops: [], medications: [], awakes: [], solid_foods: [], lastFeed: null, activeAwake: null });
         setShowSetup(false);
@@ -481,6 +487,8 @@ export default function Home() {
         setHistoryLoading(false);
         setHistoryError(null);
         setShowHistory(false);
+        setPendingAwakeStart(null);
+        setAwakeStartError(null);
         localStorage.setItem('feedRoomId', json.data.id);
         fetchRoom(json.data.id);
         setShowSetup(false);
@@ -666,11 +674,11 @@ export default function Home() {
     setShowMoreRecords(true);
   };
 
-  const handleCloseMoreRecords = () => {
+  const handleCloseMoreRecords = useCallback(() => {
     if (submitting) return;
     setAwakeStartError(null);
     setShowMoreRecords(false);
-  };
+  }, [submitting]);
 
   useEffect(() => {
     if (!showMoreRecords) return;
@@ -679,7 +687,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [showMoreRecords, submitting]);
+  }, [showMoreRecords, handleCloseMoreRecords]);
 
   // Medication handlers
   const handleQuickAddMed = () => {
@@ -739,7 +747,7 @@ export default function Home() {
     haptic('heavy');
     try {
       const result = await coordinateAwakeStart({
-        pendingRecord: pendingAwakeStart,
+        pendingRecord: currentRoomPendingAwake,
         createRecord: async () => {
           const now = new Date();
           const res = await fetch(`/api/rooms/${room.id}/awakes`, {
@@ -760,7 +768,7 @@ export default function Home() {
       }
       if (result.created) setFeedTrendRefreshNonce((value) => value + 1);
       if (result.status === 'sync-failed') {
-        setPendingAwakeStart(result.record);
+        setPendingAwakeStart({ roomId: room.id, record: result.record });
         setAwakeStartError('记录已保存，同步失败，请重试');
         return;
       }
@@ -833,6 +841,8 @@ export default function Home() {
     setHistoryLoading(false);
     setHistoryError(null);
     setShowHistory(false);
+    setPendingAwakeStart(null);
+    setAwakeStartError(null);
     localStorage.removeItem('feedRoomId');
     setRoom(null);
     setShowSetup(true);
@@ -1924,7 +1934,7 @@ export default function Home() {
               style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
             >
               <EyeOpenIcon size={24} />
-              <span className="text-sm font-medium">{room.activeAwake ? '清醒中' : pendingAwakeStart ? '重试同步' : '清醒'}</span>
+              <span className="text-sm font-medium">{room.activeAwake ? '清醒中' : currentRoomPendingAwake ? '重试同步' : '清醒'}</span>
             </button>
             <button
               type="button"

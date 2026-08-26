@@ -3,6 +3,18 @@ export type AwakeStartResult<T> =
   | { status: 'create-failed' }
   | { status: 'sync-failed'; record: T; created: boolean };
 
+export interface PendingAwakeStart<T> {
+  roomId: string;
+  record: T;
+}
+
+export function getPendingAwakeRecord<T>(
+  pending: PendingAwakeStart<T> | null,
+  roomId: string,
+): T | null {
+  return pending?.roomId === roomId ? pending.record : null;
+}
+
 interface AwakeStartOptions<T> {
   pendingRecord: T | null;
   createRecord: () => Promise<T>;
