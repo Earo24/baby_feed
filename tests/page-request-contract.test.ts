@@ -54,3 +54,15 @@ test('renders feed volume trend inside the guarded history overlay', () => {
   assert.match(pageSource, /import\s+\{?\s*FeedVolumeTrend\s*\}?\s+from\s+['"]@\/components\/feed-volume-trend['"]/);
   assert.match(pageSource, /<FeedVolumeTrend\s+roomId=\{room\.id\}\s+todayTotalMl=\{todayTotalMl\}\s+refreshKey=\{feedTrendRefreshKey\}\s*\/>/);
 });
+
+test('refreshes feed volume trend after feed mutations', () => {
+  assert.match(pageSource, /const \[feedTrendRefreshNonce, setFeedTrendRefreshNonce\] = useState\(0\)/);
+  assert.match(pageSource, /const feedTrendRefreshKey = `\$\{feedTrendRefreshNonce\}:/);
+
+  const addHandlerStart = pageSource.indexOf('const handleConfirm = async');
+  const addHandlerEnd = pageSource.indexOf('const handleSkipConfirm', addHandlerStart);
+  const deleteHandlerStart = pageSource.indexOf('const handleDeleteFeed = async');
+  const deleteHandlerEnd = pageSource.indexOf('const handleQuickAddSolidFood', deleteHandlerStart);
+  assert.match(pageSource.slice(addHandlerStart, addHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
+  assert.match(pageSource.slice(deleteHandlerStart, deleteHandlerEnd), /setFeedTrendRefreshNonce\(\(value\) => value \+ 1\)/);
+});

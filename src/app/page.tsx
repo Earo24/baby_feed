@@ -239,6 +239,7 @@ export default function Home() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyDays, setHistoryDays] = useState(7);
+  const [feedTrendRefreshNonce, setFeedTrendRefreshNonce] = useState(0);
 
   // Poop states
   const [showPoopConfirm, setShowPoopConfirm] = useState(false);
@@ -488,7 +489,10 @@ export default function Home() {
       const startedAt = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, m);
       const res = await fetch(`/api/rooms/${room.id}/feeds`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feed_type: 'formula', feeder_name: feederName || null, amount_ml: editAmount, started_at: startedAt.toISOString() }) });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ } finally { setShowFeedConfirm(false); setSubmitting(false); }
   };
 
@@ -499,7 +503,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
       const json = await res.json();
-      if (json.success) await fetchRoom(room.id);
+      if (json.success) {
+        setFeedTrendRefreshNonce((value) => value + 1);
+        await fetchRoom(room.id);
+      }
     } catch { /* silent */ }
   };
 
@@ -856,9 +863,9 @@ export default function Home() {
   const todayTotalMl = room.feeds.reduce((sum, f) => sum + (f.amount_ml || 0), 0);
   const todayCount = room.feeds.length;
   const todaySolidFoodCount = room.solid_foods?.length || 0;
-  const feedTrendRefreshKey = room.feeds
+  const feedTrendRefreshKey = `${feedTrendRefreshNonce}:${room.feeds
     .map((feed) => `${feed.id}:${feed.amount_ml ?? ''}:${feed.started_at}`)
-    .join('|');
+    .join('|')}`;
 
   return (
     <div className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
