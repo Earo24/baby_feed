@@ -165,6 +165,11 @@ export function getDatabase(): SqliteDatabase {
   return db;
 }
 
+export function checkDatabaseHealth(): void {
+  const result = getDatabase().prepare('SELECT 1 AS ok').get() as { ok?: number } | undefined;
+  if (result?.ok !== 1) throw new Error('SQLite health check failed');
+}
+
 export function createId(): string {
   return randomUUID();
 }
