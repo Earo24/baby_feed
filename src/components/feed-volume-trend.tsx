@@ -210,7 +210,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                       measured_count: '有奶量记录次数',
                     };
                     const key = String(name);
-                    const display = key === 'total_ml' ? formatValue(value) : `${value ?? 0} 次`;
+                    const display = key === 'total_ml' || key === 'volume' ? formatValue(value) : `${value ?? 0} 次`;
                     return [display, labels[key] || key];
                   }}
                 />
