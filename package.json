@@ -8,6 +8,7 @@
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "lint:build": "eslint . --quiet",
+    "deploy": "bash ./scripts/deploy.sh deploy",
     "start": "bash ./scripts/start.sh",
     "test": "tsx --test tests/*.test.ts",
     "ts-check": "tsc -p tsconfig.json",

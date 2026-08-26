@@ -164,3 +164,6 @@ Desktop.ini
 .preview
 .codegraph
 .worktrees/
+
+# Local deployment target; never commit credentials or host-specific values
+.env.deploy
