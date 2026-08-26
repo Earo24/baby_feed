@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getRoomById, getFeedTrendRecords } from '@/storage/database/sqlite';
+import { getMultiTrendRecords, getRoomById } from '@/storage/database/sqlite';
 import {
-  buildFeedTrend,
   getTrendBucketCount,
   getTrendRangeStart,
   type FeedTrendGranularity,
 } from '@/lib/feed-stats';
+import { buildMultiRecordTrend } from '@/lib/multi-record-stats';
 
 const GRANULARITIES: FeedTrendGranularity[] = ['day', 'week', 'month'];
 
@@ -30,8 +30,8 @@ export async function GET(
     }
 
     const now = new Date();
-    const records = getFeedTrendRecords(id, getTrendRangeStart(granularity, now));
-    const allPoints = buildFeedTrend(granularity, now, records);
+    const records = getMultiTrendRecords(id, getTrendRangeStart(granularity, now));
+    const allPoints = buildMultiRecordTrend(granularity, now, records);
     const points = range === maxCount ? allPoints : allPoints.slice(-range);
     return NextResponse.json({
       success: true,
