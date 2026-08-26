@@ -91,6 +91,13 @@ test('renders event markers and an explicit trend tooltip from event points', ()
   assert.match(trendSource, /EventMarker|TrendBarWithEvents/);
   assert.match(trendSource, /payload\[0\]\.payload/);
   assert.match(trendSource, /total_ml/);
+  assert.match(trendSource, /有奶量记录：\{point\.measured_count\} 次/);
   assert.match(trendSource, /awake_minutes/);
   assert.match(trendSource, /fill=\{['"]#E3B87A['"]\}|#D9917A/);
+});
+
+test('anchors event markers to the shared chart plot top', () => {
+  assert.match(trendSource, /SHARED_CHART_TOP_MARGIN\s*=\s*56/);
+  assert.match(trendSource, /EVENT_PLOT_TOP\s*=\s*SHARED_CHART_TOP_MARGIN/);
+  assert.match(trendSource, /margin=\{\{ top: SHARED_CHART_TOP_MARGIN/);
 });

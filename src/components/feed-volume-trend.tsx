@@ -84,7 +84,8 @@ const EMPTY_EVENTS: TrendEventCounts = {
   awake_minutes: 0,
 };
 
-const EVENT_PLOT_TOP = 8;
+const SHARED_CHART_TOP_MARGIN = 56;
+const EVENT_PLOT_TOP = SHARED_CHART_TOP_MARGIN;
 
 const chartConfig = {
   volume: { label: '奶量', color: '#E3B87A' },
@@ -172,6 +173,7 @@ function TrendTooltip({ active, payload }: TrendTooltipProps) {
       <p className="mb-1 font-medium">{point.label}</p>
       <p>总奶量：{point.total_ml} ml</p>
       <p>喂奶次数：{point.feed_count} 次</p>
+      <p>有奶量记录：{point.measured_count} 次</p>
       {EVENT_TYPES.slice(0, 3).map((event) =>
         events[event.key] > 0 ? (
           <p key={event.key} style={{ color: event.color }}>
@@ -300,7 +302,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
         <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>暂无可统计奶量</p>
       ) : (
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
-          <BarChart data={points} margin={{ top: 56, right: 4, left: -16, bottom: 4 }}>
+          <BarChart data={points} margin={{ top: SHARED_CHART_TOP_MARGIN, right: 4, left: -16, bottom: 4 }}>
             <CartesianGrid vertical={false} stroke="#F1E5D8" />
             <XAxis
               dataKey="label"
