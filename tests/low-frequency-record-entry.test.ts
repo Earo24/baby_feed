@@ -46,3 +46,21 @@ test('promotes an active awake record to a direct home action', () => {
   assert.match(pageSource, /已清醒 \{awakeDuration\}/);
   assert.match(pageSource, />睡了<\/span>/);
 });
+
+test('keeps More open when the awake refresh fails', () => {
+  const start = pageSource.indexOf('const handleQuickAddAwake');
+  const end = pageSource.indexOf('const handleEndAwake', start);
+  const handler = pageSource.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(handler, /const roomRefreshed = await fetchRoom\(room.id\);/);
+
+  const refreshFailure = handler.indexOf('if (!roomRefreshed) {');
+  const error = handler.indexOf("setAwakeStartError('记录失败，请重试');", refreshFailure);
+  const close = handler.indexOf('setShowMoreRecords(false);');
+
+  assert.ok(refreshFailure >= 0);
+  assert.ok(error > refreshFailure);
+  assert.ok(close > error);
+  assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
+});

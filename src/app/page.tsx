@@ -360,10 +360,11 @@ export default function Home() {
     try {
       const res = await fetch(`/api/rooms/${roomId}`);
       const json = await res.json();
-      if (!requestState.roomGate.isLatest(requestToken)) return;
+      if (!requestState.roomGate.isLatest(requestToken)) return false;
       if (json.success) {
         requestState.setActiveRoomId(roomId);
         setRoom(json.data);
+        return true;
       } else {
         requestState.setActiveRoomId(null);
         requestState.setHistoryOpen(false);
@@ -374,8 +375,12 @@ export default function Home() {
         localStorage.removeItem('feedRoomId');
         setShowSetup(true);
         setRoom(null);
+        return false;
       }
-    } catch { /* keep existing data */ } finally {
+    } catch {
+      /* keep existing data */
+      return false;
+    } finally {
       if (requestState.roomGate.isLatest(requestToken)) setLoading(false);
     }
   }, [requestState]);
@@ -724,7 +729,11 @@ export default function Home() {
         return;
       }
       setFeedTrendRefreshNonce((value) => value + 1);
-      await fetchRoom(room.id);
+      const roomRefreshed = await fetchRoom(room.id);
+      if (!roomRefreshed) {
+        setAwakeStartError('记录失败，请重试');
+        return;
+      }
       setShowMoreRecords(false);
     } catch {
       setAwakeStartError('记录失败，请重试');
