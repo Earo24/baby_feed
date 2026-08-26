@@ -56,7 +56,7 @@ const GRANULARITY_LABELS: Record<Granularity, string> = {
 };
 
 const chartConfig = {
-  volume: { label: '总奶量', color: '#E3B87A' },
+  volume: { label: '奶量', color: '#E3B87A' },
   feed_count: { label: '喂奶次数', color: '#A89888' },
   measured_count: { label: '有奶量记录次数', color: '#A89888' },
 } satisfies ChartConfig;
