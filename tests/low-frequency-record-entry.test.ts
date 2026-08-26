@@ -56,7 +56,10 @@ test('coordinates awake sync retries without repeating a create request', () => 
   assert.match(pageSource, /const \[pendingAwakeStart, setPendingAwakeStart\] = useState<AwakeRecord \| null>\(null\)/);
   assert.match(pageSource, /coordinateAwakeStart\(\{/);
   assert.match(handler, /记录已保存，同步失败，请重试/);
-  assert.match(pageSource, /pendingAwakeStart \? '重试同步' : room\.activeAwake \? '清醒中' : '清醒'/);
+  const trendRefresh = handler.indexOf('if (result.created) setFeedTrendRefreshNonce');
+  const syncFailure = handler.indexOf("if (result.status === 'sync-failed')");
+  assert.ok(trendRefresh >= 0 && trendRefresh < syncFailure);
+  assert.match(pageSource, /room\.activeAwake \? '清醒中' : pendingAwakeStart \? '重试同步' : '清醒'/);
   assert.match(handler, /finally \{\s*setSubmitting\(false\);\s*\}/);
 });
 

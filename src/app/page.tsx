@@ -758,12 +758,12 @@ export default function Home() {
         setAwakeStartError('记录失败，请重试');
         return;
       }
+      if (result.created) setFeedTrendRefreshNonce((value) => value + 1);
       if (result.status === 'sync-failed') {
         setPendingAwakeStart(result.record);
         setAwakeStartError('记录已保存，同步失败，请重试');
         return;
       }
-      if (result.created) setFeedTrendRefreshNonce((value) => value + 1);
       setPendingAwakeStart(null);
       setAwakeStartError(null);
       setShowMoreRecords(false);
@@ -1924,7 +1924,7 @@ export default function Home() {
               style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
             >
               <EyeOpenIcon size={24} />
-              <span className="text-sm font-medium">{pendingAwakeStart ? '重试同步' : room.activeAwake ? '清醒中' : '清醒'}</span>
+              <span className="text-sm font-medium">{room.activeAwake ? '清醒中' : pendingAwakeStart ? '重试同步' : '清醒'}</span>
             </button>
             <button
               type="button"
