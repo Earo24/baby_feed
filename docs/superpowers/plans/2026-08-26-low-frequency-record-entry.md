@@ -22,7 +22,6 @@
 **Files:**
 - Create: `src/lib/action-carousel.ts`
 - Create: `tests/action-carousel.test.ts`
-- Modify: `src/app/page.tsx:3-10,318-341`
 
 - [ ] **Step 1: Write the failing carousel contract test**
 
@@ -81,24 +80,7 @@ export function getActionCarouselSetWidth(itemWidth: number): number {
 }
 ```
 
-- [ ] **Step 4: Make the loop calculation consume the shared contract**
-
-Add the import in `src/app/page.tsx`:
-
-```ts
-import { getActionCarouselSetWidth } from '@/lib/action-carousel';
-```
-
-Replace the fixed five-item calculation inside `checkBtnLoop`:
-
-```ts
-const itemWidth = 140;
-const oneSet = getActionCarouselSetWidth(itemWidth);
-```
-
-Keep the existing center-offset and three-set jump behavior unchanged.
-
-- [ ] **Step 5: Run the focused test and static checks**
+- [ ] **Step 4: Run the focused test and static checks**
 
 Run:
 
@@ -109,10 +91,10 @@ pnpm run ts-check
 
 Expected: both commands exit 0; the test reports 2 passing tests.
 
-- [ ] **Step 6: Commit the carousel contract**
+- [ ] **Step 5: Commit the carousel contract**
 
 ```bash
-git add src/lib/action-carousel.ts tests/action-carousel.test.ts src/app/page.tsx
+git add src/lib/action-carousel.ts tests/action-carousel.test.ts
 git commit -m "refactor: define home action carousel contract"
 ```
 
@@ -120,7 +102,7 @@ git commit -m "refactor: define home action carousel contract"
 
 **Files:**
 - Create: `tests/low-frequency-record-entry.test.ts`
-- Modify: `src/app/page.tsx:230-275,643-719,1029-1171`
+- Modify: `src/app/page.tsx:3-10,230-275,318-341,643-719,1029-1171`
 
 - [ ] **Step 1: Write the failing page contract tests**
 
@@ -260,6 +242,21 @@ const handleQuickAddAwake = async () => {
 This preserves the existing API request and trend refresh while keeping the More sheet open on failure.
 
 - [ ] **Step 5: Replace the carousel JSX with the four approved actions**
+
+Before replacing the carousel JSX, add the shared helper import in `src/app/page.tsx`:
+
+```ts
+import { getActionCarouselSetWidth } from '@/lib/action-carousel';
+```
+
+In `checkBtnLoop`, replace the fixed five-item calculation in the same implementation:
+
+```ts
+const itemWidth = 140;
+const oneSet = getActionCarouselSetWidth(itemWidth);
+```
+
+Keep the existing center-offset and three-set jump behavior unchanged. This page change must be committed with the four-item carousel JSX below.
 
 Inside every repeated carousel set, render actions in this exact order:
 

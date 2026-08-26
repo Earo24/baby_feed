@@ -6,7 +6,6 @@ import { Utensils } from 'lucide-react';
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
 import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
-import { getActionCarouselSetWidth } from '@/lib/action-carousel';
 import { createRequestState, fetchHistorySnapshot } from '@/lib/request-state';
 import type { NormalizedSolidFoodInput, SolidFoodRecord } from '@/lib/solid-food';
 
@@ -321,7 +320,7 @@ export default function Home() {
     const container = btnScrollRef.current;
     if (!container) return;
     const itemWidth = 140;
-    const oneSet = getActionCarouselSetWidth(itemWidth);
+    const oneSet = itemWidth * 5;
     const scrollLeft = container.scrollLeft;
     const viewportCenter = scrollLeft + container.clientWidth / 2;
     const currentSet = Math.floor(viewportCenter / oneSet);
