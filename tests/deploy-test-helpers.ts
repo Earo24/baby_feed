@@ -49,8 +49,14 @@ case "$name:$1" in
     fi
   ;;
   docker:ps) [[ "\${FAKE_DOCKER_ACTIVE:-0}" == 1 ]] && echo baby-feed-running;;
-  docker:images) printf '%s\n' "\${FAKE_IMAGE_LIST:-}";;
-  docker:rmi) :;;
+  docker:images)
+    [[ "\${FAKE_DOCKER_IMAGES_FAIL:-0}" != 1 ]] || exit 1
+    printf '%s\n' "\${FAKE_IMAGE_LIST:-}"
+    ;;
+  docker:rmi)
+    [[ "\${FAKE_DOCKER_RMI_FAIL:-0}" != 1 ]] || exit 1
+    :
+    ;;
   systemctl:is-active) [[ "\${FAKE_SYSTEMD_ACTIVE:-1}" == 1 ]];;
   systemctl:stop) [[ "\${FAKE_STOP_FAIL:-0}" != 1 ]];;
   systemctl:*) :;;

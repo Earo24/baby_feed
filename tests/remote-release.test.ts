@@ -23,9 +23,13 @@ type FixtureOptions = {
   backupKeep?: number;
   composeUpFailures?: number;
   dockerActive?: boolean;
+  dockerImagesFails?: boolean;
+  dockerRmiFails?: boolean;
   fixedTimestamp?: string;
   healthSequence?: string[];
   httpHealthy?: boolean;
+  imageKeep?: number;
+  imageList?: string[];
   stopFails?: boolean;
   systemdActive?: boolean;
   tarFails?: boolean;
@@ -69,9 +73,12 @@ function createFixture(options: FixtureOptions = {}) {
     BACKUP_KEEP: options.backupKeep ? String(options.backupKeep) : '10',
     FAKE_COMPOSE_UP_FAILURES: options.composeUpFailures ? String(options.composeUpFailures) : '0',
     FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
+    FAKE_DOCKER_IMAGES_FAIL: options.dockerImagesFails ? '1' : '0',
+    FAKE_DOCKER_RMI_FAIL: options.dockerRmiFails ? '1' : '0',
     FAKE_HEALTH_SEQUENCE: options.healthSequence?.join(',') ?? '',
     FAKE_HTTP_HEALTH: options.httpHealthy === false ? '0' : '1',
-    FAKE_IMAGE_LIST: '',
+    IMAGE_KEEP: options.imageKeep ? String(options.imageKeep) : '3',
+    FAKE_IMAGE_LIST: options.imageList?.join('\n') ?? '',
     FAKE_RUNNING_IMAGE: '',
     FAKE_STOP_FAIL: options.stopFails ? '1' : '0',
     FAKE_SYSTEMD_ACTIVE: options.systemdActive === false ? '0' : '1',
@@ -125,12 +132,12 @@ function createFixture(options: FixtureOptions = {}) {
     },
     validBackupCount() {
       return readdirSync(path.join(root, 'backups')).filter((name) =>
-        /^20\d{6}T\d{6}Z-/.test(name),
+        /^20\d{6}T\d{6}Z-[A-Za-z0-9._-]+$/.test(name),
       ).length;
     },
     remainingNonReleaseBackupNames() {
       return readdirSync(path.join(root, 'backups'))
-        .filter((name) => !/^20\d{6}T\d{6}Z-/.test(name))
+        .filter((name) => !/^20\d{6}T\d{6}Z-[A-Za-z0-9._-]+$/.test(name))
         .sort();
     },
     dataDigest() {
@@ -447,5 +454,101 @@ test('retention removes only excess valid backup directories', () => {
   assert.equal(fixture.run('rollback').status, 0);
   assert.deepEqual(fixture.remainingNonReleaseBackupNames(), ['keep-me']);
   assert.equal(fixture.validBackupCount(), 2);
+  assert.equal(fixture.commandLog().includes('docker|system prune'), false);
+});
+
+test('retention leaves malformed backup lookalikes untouched', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true, backupKeep: 1 });
+  fixture.createBackups([
+    '20260820T010101Z-old',
+    '20260821T010101Z-old',
+    '20abcdefTghijklZ-manual',
+    '20260822T010101Z-unsafe label',
+    '20260823T010101Z-good',
+  ]);
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  assert.equal(fixture.run('rollback').status, 0);
+  assert.equal(fixture.validBackupCount(), 1);
+  assert.equal(existsSync(path.join(fixture.root, 'backups', '20abcdefTghijklZ-manual')), true);
+  assert.equal(existsSync(path.join(fixture.root, 'backups', '20260822T010101Z-unsafe label')), true);
+});
+
+test('image retention protects release tags and removes deterministic excess only', () => {
+  const fixture = createFixture({
+    systemdActive: false,
+    httpHealthy: true,
+    imageKeep: 3,
+    imageList: [
+      'other:tag',
+      'baby-feed:5555555',
+      'baby-feed:2222222',
+      'baby-feed:3333333',
+      'baby-feed:3333333',
+      'baby-feed:1111111',
+      'baby-feed:4444444',
+    ],
+  });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(fixture.commandLog(), /docker\|rmi baby-feed:4444444/);
+  assert.match(fixture.commandLog(), /docker\|rmi baby-feed:5555555/);
+  assert.doesNotMatch(fixture.commandLog(), /docker\|rmi baby-feed:(1111111|2222222|3333333)/);
+  assert.doesNotMatch(fixture.commandLog(), /docker\|rmi other:tag/);
+});
+
+test('image listing cleanup failure warns without failing a healthy rollback', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true, dockerImagesFails: true });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /warning: could not list Docker images for retention/);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:1111111');
+});
+
+test('failed rollback start restores the original healthy application without restoring SQLite', () => {
+  const fixture = createFixture({ systemdActive: false, httpHealthy: true, composeUpFailures: 1 });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const before = fixture.dataDigest();
+  const result = fixture.run('rollback');
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:2222222');
+  assert.equal(fixture.releaseValue('PREVIOUS_IMAGE'), 'baby-feed:1111111');
+  assert.equal(fixture.dataDigest(), before);
+  assert.equal(fixture.backupCount(), 1);
+  assert.equal(fixture.commandLog().match(/compose[^\n]*up -d/g)?.length, 2);
+  assert.match(fixture.commandLog(), /curl\|--connect-timeout/);
+});
+
+test('failed rollback health restores the original healthy application without restoring SQLite', () => {
+  const fixture = createFixture({
+    systemdActive: false,
+    healthSequence: ['unhealthy', 'healthy'],
+    httpHealthy: true,
+  });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const before = fixture.dataDigest();
+  const result = fixture.run('rollback');
+  assert.notEqual(result.status, 0);
+  assert.equal(fixture.releaseValue('CURRENT_IMAGE'), 'baby-feed:2222222');
+  assert.equal(fixture.releaseValue('PREVIOUS_IMAGE'), 'baby-feed:1111111');
+  assert.equal(fixture.dataDigest(), before);
+  assert.equal(fixture.backupCount(), 1);
+  assert.equal(fixture.commandLog().match(/compose[^\n]*up -d/g)?.length, 2);
+  assert.match(fixture.commandLog(), /curl\|--connect-timeout/);
+});
+
+test('image removal failure warns without failing a healthy rollback', () => {
+  const fixture = createFixture({
+    systemdActive: false,
+    dockerRmiFails: true,
+    httpHealthy: true,
+    imageKeep: 1,
+    imageList: ['baby-feed:3333333', 'baby-feed:2222222', 'baby-feed:1111111'],
+  });
+  fixture.writeReleaseState('baby-feed:2222222', 'baby-feed:1111111');
+  const result = fixture.run('rollback');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /warning: could not remove old image baby-feed:3333333/);
   assert.equal(fixture.commandLog().includes('docker|system prune'), false);
 });

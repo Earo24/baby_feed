@@ -327,10 +327,11 @@ restore_previous_application() {
 
 cleanup_backups() {
   local -a backups=()
-  local remove_count index
+  local remove_count index backup name
   while IFS= read -r backup; do
-    [[ -n "$backup" ]] && backups+=("$backup")
-  done < <(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name '20??????T??????Z-*' -print | sort)
+    name="${backup##*/}"
+    [[ "$name" =~ ^20[0-9]{6}T[0-9]{6}Z-[A-Za-z0-9._-]+$ ]] && backups+=("$backup")
+  done < <(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -print | sort)
   remove_count=$((${#backups[@]} - BACKUP_KEEP))
   (( remove_count > 0 )) || return 0
   for ((index = 0; index < remove_count; index += 1)); do
@@ -339,19 +340,33 @@ cleanup_backups() {
 }
 
 cleanup_images() {
-  local current previous kept=0 tag
+  local current previous remaining index tag image_list_file
+  local -a protected=() removable=()
   current="$(release_value CURRENT_IMAGE)"
   previous="$(release_value PREVIOUS_IMAGE)"
+  if ! new_stable_temp_file image_list_file cleanup-images; then
+    log 'warning: could not prepare Docker image retention'
+    return 0
+  fi
+  if ! docker images --filter 'reference=baby-feed:*' --format '{{.Repository}}:{{.Tag}}' |
+    sort -u >"$image_list_file"; then
+    log 'warning: could not list Docker images for retention'
+    return 0
+  fi
   while IFS= read -r tag; do
-    [[ -n "$tag" ]] || continue
+    [[ "$tag" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || continue
     if [[ "$tag" == "$current" || "$tag" == "$previous" ]]; then
-      kept=$((kept + 1))
-    elif (( kept < IMAGE_KEEP )); then
-      kept=$((kept + 1))
+      protected+=("$tag")
     else
-      docker rmi "$tag" >/dev/null 2>&1 || log "warning: could not remove old image ${tag}"
+      removable+=("$tag")
     fi
-  done < <(docker images --filter 'reference=baby-feed:*' --format '{{.Repository}}:{{.Tag}}' | awk '!seen[$0]++')
+  done <"$image_list_file"
+  remaining=$((IMAGE_KEEP - ${#protected[@]}))
+  if (( remaining < 0 )); then remaining=0; fi
+  for ((index = remaining; index < ${#removable[@]}; index += 1)); do
+    tag="${removable[$index]}"
+    docker rmi "$tag" >/dev/null 2>&1 || log "warning: could not remove old image ${tag}"
+  done
 }
 
 cleanup_release_artifacts() {
