@@ -90,6 +90,9 @@ case "$name:$1" in
     exec /usr/bin/find "$@"
     ;;
   rm:*)
+    if [[ "\${FAKE_ARTIFACT_DELETE_FAIL:-0}" == 1 && "$*" == *"/incoming/"* ]]; then
+      exit 1
+    fi
     if [[ "\${FAKE_BACKUP_DELETE_FAILURES:-0}" =~ ^[1-9][0-9]*$ && "$*" == *"/backups/"* ]]; then
       counter_file="\${FAKE_STATE_DIR:-/tmp}/fake-backup-rm-count"
       if [[ -f "$counter_file" ]]; then count="$(<"$counter_file")"; else count=0; fi

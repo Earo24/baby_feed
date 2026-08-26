@@ -24,6 +24,7 @@ type FixtureOptions = {
   backupKeep?: number;
   composeUpFailures?: number;
   composeStopFailAfter?: number;
+  artifactDeleteFails?: boolean;
   dockerActive?: boolean;
   dockerImagesFails?: boolean;
   dockerRmiFails?: boolean;
@@ -63,9 +64,11 @@ function createFixture(options: FixtureOptions = {}) {
   const incomingDirectory = path.join(root, 'incoming');
   const archive = path.join(incomingDirectory, 'baby-feed-image.tar.gz');
   const compose = path.join(incomingDirectory, 'compose-source.yaml');
+  const releaseScript = path.join(incomingDirectory, 'compose-source-release.sh');
   const logFile = path.join(root, 'commands.log');
   writeFileSync(archive, gzipSync('fake docker image archive'));
   writeFileSync(compose, 'services:\n  app:\n    image: ${BABY_FEED_IMAGE}\n');
+  writeFileSync(releaseScript, '#!/bin/bash\n');
   writeFileSync(logFile, '');
 
   const fakeBin = createFakeCommands(root);
@@ -81,6 +84,7 @@ function createFixture(options: FixtureOptions = {}) {
     FAKE_COMPOSE_STOP_FAIL_AFTER: options.composeStopFailAfter
       ? String(options.composeStopFailAfter)
       : '0',
+    FAKE_ARTIFACT_DELETE_FAIL: options.artifactDeleteFails ? '1' : '0',
     FAKE_DOCKER_ACTIVE: options.dockerActive ? '1' : '0',
     FAKE_DOCKER_IMAGES_FAIL: options.dockerImagesFails ? '1' : '0',
     FAKE_DOCKER_RMI_FAIL: options.dockerRmiFails ? '1' : '0',
@@ -108,6 +112,7 @@ function createFixture(options: FixtureOptions = {}) {
   return {
     archive,
     compose,
+    releaseScript,
     root,
     run(...args: string[]) {
       return spawnSync('bash', ['deploy/remote-release.sh', ...args], {
@@ -522,6 +527,25 @@ test('bounds each HTTP health request by the remaining health timeout', () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(fixture.commandLog(), /curl\|--connect-timeout 1 --max-time 1 --fail/);
+});
+
+test('removes the uploaded image, Compose, and release script after a healthy deploy', () => {
+  const fixture = createFixture({ httpHealthy: true, systemdActive: true });
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(fixture.archive), false);
+  assert.equal(existsSync(fixture.compose), false);
+  assert.equal(existsSync(fixture.releaseScript), false);
+});
+
+test('warns but succeeds when uploaded artifact cleanup fails', () => {
+  const fixture = createFixture({ artifactDeleteFails: true, httpHealthy: true, systemdActive: true });
+  const result = fixture.run('deploy', 'baby-feed:abcdef123456', fixture.archive, fixture.compose);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /warning: release succeeded but incoming artifacts could not be removed/);
+  assert.equal(existsSync(fixture.releaseScript), true);
 });
 
 test('restores the prior image state without restoring SQLite when health fails', () => {

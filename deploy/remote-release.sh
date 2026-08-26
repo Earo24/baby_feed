@@ -542,11 +542,14 @@ recover_after_candidate_failure() {
 
 deploy_release() {
   local new_image="$1" archive_argument="$2" compose_argument="$3"
-  local archive compose_source backup_path architecture systemd_disabled=0 recovery_status
+  local archive compose_source release_script backup_path architecture systemd_disabled=0 recovery_status
   [[ "$new_image" =~ ^baby-feed:[0-9a-f]{7,40}$ ]] || die 'invalid image tag'
   require_release_directories
   validate_incoming_artifact 'image archive' "$archive_argument" archive
   validate_incoming_artifact 'Compose source' "$compose_argument" compose_source
+  [[ "$compose_source" == *.yaml ]] || die 'Compose source must use a .yaml suffix'
+  release_script="${compose_source%.yaml}-release.sh"
+  validate_incoming_artifact 'release script' "$release_script" release_script
   acquire_lock
   detect_application_state
   snapshot_stable_state
@@ -615,7 +618,7 @@ deploy_release() {
 
   log "release healthy: ${new_image}; backup: ${backup_path}"
   cleanup_release_artifacts
-  if ! rm -f -- "$archive" "$compose_source"; then
+  if ! rm -f -- "$archive" "$compose_source" "$release_script"; then
     log 'warning: release succeeded but incoming artifacts could not be removed'
   fi
 }
