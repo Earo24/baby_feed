@@ -60,7 +60,7 @@ test('supports weekly and monthly trends', async () => {
 });
 
 test('rejects invalid granularity and range', async () => {
-  for (const query of ['?granularity=year', '?granularity=day&range=0', '?granularity=day&range=91', '?granularity=week&range=13', '?granularity=month&range=-1', '?granularity=day&range=nope']) {
+  for (const query of ['?granularity=', '?granularity=year', '?granularity=day&range=0', '?granularity=day&range=91', '?granularity=week&range=13', '?granularity=month&range=-1', '?granularity=day&range=nope']) {
     const response = await getFeedStats(request(query), { params: Promise.resolve({ id: roomId }) });
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { success: false, error: '无效的统计粒度或范围' });

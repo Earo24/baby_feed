@@ -19,7 +19,7 @@ export async function GET(
   }
 
   const search = new URL(request.url).searchParams;
-  const granularityValue = search.get('granularity') || 'day';
+  const granularityValue = search.get('granularity') ?? 'day';
   const granularity = granularityValue as FeedTrendGranularity;
   const maxCount = GRANULARITIES.includes(granularity) ? getTrendBucketCount(granularity) : 0;
   const rangeRaw = search.get('range');
