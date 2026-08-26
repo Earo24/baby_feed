@@ -56,6 +56,10 @@ test('samples long trend axis labels without dropping trend data points', () => 
   assert.match(trendSource, /granularity === 'week' && pointCount > 6/);
   assert.match(trendSource, /index % 3 === 0 \|\| index === pointCount - 1/);
   assert.match(trendSource, /index % 2 === 0 \|\| index === pointCount - 1/);
+  assert.match(trendSource, /index % 20 === 0 && index !== lastRegularLabelIndex/);
+  assert.doesNotMatch(trendSource, /index % 10 === 0 \|\| index === pointCount - 1/);
+  assert.match(trendSource, /lastRegularLabelIndex = Math\.floor\(lastIndex \/ 20\) \* 20/);
+  assert.match(trendSource, /index !== lastRegularLabelIndex/);
   assert.match(trendSource, /<BarChart data=\{points\}/);
 });
 

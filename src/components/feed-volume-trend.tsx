@@ -103,7 +103,9 @@ function shouldShowXAxisLabel(
   pointCount: number,
 ): boolean {
   if (granularity === 'day' && pointCount > 30) {
-    return index % 10 === 0 || index === pointCount - 1;
+    const lastIndex = pointCount - 1;
+    const lastRegularLabelIndex = Math.floor(lastIndex / 20) * 20;
+    return (index % 20 === 0 && index !== lastRegularLabelIndex) || index === lastIndex;
   }
 
   if (granularity === 'month' && pointCount > 6) {
