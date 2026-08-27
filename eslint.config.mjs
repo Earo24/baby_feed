@@ -44,6 +44,8 @@ const eslintConfig = defineConfig([
     // Build artifacts:
     'server.js',
     'dist/**',
+    // Local Git worktrees contain their own source and generated output.
+    '.worktrees/**',
     // Script files (CommonJS):
     'scripts/**/*.js',
   ]),
