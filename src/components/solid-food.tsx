@@ -73,24 +73,24 @@ export function SolidFoodRecordRow({ record }: SolidFoodRecordRowProps) {
   return (
     <div
       className="flex min-w-0 items-start gap-3 px-4 py-3"
-      style={{ backgroundColor: '#FFFCF8' }}
+      style={{ backgroundColor: 'var(--app-surface)' }}
     >
       <div className="flex shrink-0 items-center gap-2 pt-1" aria-hidden="true">
-        <span className="size-1.5 rounded-full" style={{ backgroundColor: '#6F9B78' }} />
-        <Utensils className="size-4 shrink-0" style={{ color: '#6F9B78' }} strokeWidth={1.5} />
+        <span className="size-1.5 rounded-full" style={{ backgroundColor: 'var(--app-success)' }} />
+        <Utensils className="size-4 shrink-0" style={{ color: 'var(--app-success)' }} strokeWidth={1.5} />
       </div>
       <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="min-w-0 max-w-full flex-1 basis-24 truncate text-base" style={{ color: '#3D3229' }}>
+          <span className="min-w-0 max-w-full flex-1 basis-24 truncate text-base" style={{ color: 'var(--app-text)' }}>
             {record.food_name}
           </span>
           {amount ? (
-            <span className="shrink-0 text-sm" style={{ color: '#6F9B78' }}>
+            <span className="shrink-0 text-sm" style={{ color: 'var(--app-success)' }}>
               {amount}
             </span>
           ) : null}
           {record.recorder_name ? (
-            <span className="min-w-0 max-w-full truncate text-sm" style={{ color: '#BFB3A8' }}>
+            <span className="min-w-0 max-w-full truncate text-sm" style={{ color: 'var(--app-text-faint)' }}>
               {record.recorder_name}
             </span>
           ) : null}
@@ -98,12 +98,12 @@ export function SolidFoodRecordRow({ record }: SolidFoodRecordRowProps) {
         <time
           className="shrink-0 text-sm tabular-nums"
           dateTime={record.started_at}
-          style={{ color: '#BFB3A8' }}
+          style={{ color: 'var(--app-text-faint)' }}
         >
           {time}
         </time>
         {record.note ? (
-          <p className="col-span-2 min-w-0 truncate text-sm" style={{ color: '#8B7E74' }}>
+          <p className="col-span-2 min-w-0 truncate text-sm" style={{ color: 'var(--app-text-secondary)' }}>
             {record.note}
           </p>
         ) : null}
@@ -172,7 +172,7 @@ export function SolidFoodForm({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+      style={{ backgroundColor: 'var(--app-overlay)' }}
       onClick={() => {
         if (!submitting) onClose();
       }}
@@ -182,20 +182,20 @@ export function SolidFoodForm({
         aria-modal="true"
         aria-labelledby="solid-food-title"
         className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
-        style={{ backgroundColor: '#FFF9F2', borderColor: '#EDE5DC' }}
+        style={{ backgroundColor: 'var(--app-sheet)', borderColor: 'var(--app-border)' }}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <Utensils size={18} color="#6F9B78" />
-            <h2 id="solid-food-title" className="text-base font-medium" style={{ color: '#3D3229' }}>
+            <Utensils size={18} color="var(--app-success)" />
+            <h2 id="solid-food-title" className="text-base font-medium" style={{ color: 'var(--app-text)' }}>
               记录辅食
             </h2>
           </div>
           <button
             type="button"
             className="p-1"
-            style={{ color: '#BFB3A8' }}
+            style={{ color: 'var(--app-text-faint)' }}
             aria-label="关闭辅食记录"
             disabled={submitting}
             onClick={onClose}
@@ -207,7 +207,7 @@ export function SolidFoodForm({
         <form className="flex min-h-0 max-h-[calc(90dvh-7rem)] flex-col" onSubmit={handleSubmit} noValidate>
           <FieldGroup className="min-h-0 flex-1 gap-4 overflow-y-auto">
             <Field data-invalid={nameInvalid}>
-              <FieldLabel htmlFor="solid-food-name" style={{ color: '#8B7E74' }}>
+              <FieldLabel htmlFor="solid-food-name" style={{ color: 'var(--app-text-secondary)' }}>
                 食物名称
               </FieldLabel>
               <Input
@@ -220,17 +220,17 @@ export function SolidFoodForm({
                 aria-invalid={nameInvalid}
                 className="h-12 px-4 text-base"
                 style={{
-                  backgroundColor: '#FFFCF8',
-                  borderColor: '#EDE5DC',
-                  color: '#3D3229',
+                  backgroundColor: 'var(--app-surface)',
+                  borderColor: 'var(--app-border)',
+                  color: 'var(--app-text)',
                 }}
               />
-              {nameInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
+              {nameInvalid ? <FieldError style={{ color: 'var(--app-danger)' }}>{error}</FieldError> : null}
             </Field>
 
             <FieldGroup className="grid grid-cols-[minmax(0,1fr)_8rem] gap-3">
               <Field data-invalid={amountInvalid}>
-                <FieldLabel htmlFor="solid-food-amount" style={{ color: '#8B7E74' }}>
+                <FieldLabel htmlFor="solid-food-amount" style={{ color: 'var(--app-text-secondary)' }}>
                   食用量（选填）
                 </FieldLabel>
                 <Input
@@ -245,15 +245,15 @@ export function SolidFoodForm({
                   aria-invalid={amountInvalid}
                   className="h-12 px-4 text-base tabular-nums"
                   style={{
-                    backgroundColor: '#FFFCF8',
-                    borderColor: '#EDE5DC',
-                    color: '#3D3229',
+                    backgroundColor: 'var(--app-surface)',
+                    borderColor: 'var(--app-border)',
+                    color: 'var(--app-text)',
                   }}
                 />
-                {amountInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
+                {amountInvalid ? <FieldError style={{ color: 'var(--app-danger)' }}>{error}</FieldError> : null}
               </Field>
               <Field data-invalid={unitInvalid}>
-                <FieldLabel htmlFor="solid-food-unit" style={{ color: '#8B7E74' }}>
+                <FieldLabel htmlFor="solid-food-unit" style={{ color: 'var(--app-text-secondary)' }}>
                   单位
                 </FieldLabel>
                 <Select
@@ -265,14 +265,14 @@ export function SolidFoodForm({
                     aria-invalid={unitInvalid}
                     className="h-12 w-full px-3 text-base"
                     style={{
-                      backgroundColor: '#FFFCF8',
-                      borderColor: '#EDE5DC',
-                      color: '#3D3229',
+                      backgroundColor: 'var(--app-surface)',
+                      borderColor: 'var(--app-border)',
+                      color: 'var(--app-text)',
                     }}
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent style={{ backgroundColor: '#FFFCF8', borderColor: '#EDE5DC' }}>
+                  <SelectContent style={{ backgroundColor: 'var(--app-surface)', borderColor: 'var(--app-border)' }}>
                     <SelectGroup>
                       {SOLID_FOOD_UNIT_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -282,13 +282,13 @@ export function SolidFoodForm({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                {unitInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
+                {unitInvalid ? <FieldError style={{ color: 'var(--app-danger)' }}>{error}</FieldError> : null}
               </Field>
             </FieldGroup>
 
             <FieldGroup className="grid grid-cols-[minmax(0,1.2fr)_minmax(7.5rem,0.8fr)] gap-3">
               <Field>
-                <FieldLabel id="solid-food-day-label" style={{ color: '#8B7E74' }}>
+                <FieldLabel id="solid-food-day-label" style={{ color: 'var(--app-text-secondary)' }}>
                   日期
                 </FieldLabel>
                 <ToggleGroup
@@ -305,9 +305,9 @@ export function SolidFoodForm({
                     value="today"
                     className="h-12 w-full min-w-0 px-2"
                     style={{
-                      backgroundColor: usePreviousDay ? '#FFFCF8' : '#FFF3E6',
-                      borderColor: '#EDE5DC',
-                      color: usePreviousDay ? '#8B7E74' : '#C49556',
+                      backgroundColor: usePreviousDay ? 'var(--app-surface)' : 'var(--app-primary-soft)',
+                      borderColor: 'var(--app-border)',
+                      color: usePreviousDay ? 'var(--app-text-secondary)' : 'var(--app-primary-strong)',
                     }}
                   >
                     今天
@@ -316,9 +316,9 @@ export function SolidFoodForm({
                     value="yesterday"
                     className="h-12 w-full min-w-0 px-2"
                     style={{
-                      backgroundColor: usePreviousDay ? '#FFF3E6' : '#FFFCF8',
-                      borderColor: '#EDE5DC',
-                      color: usePreviousDay ? '#C49556' : '#8B7E74',
+                      backgroundColor: usePreviousDay ? 'var(--app-primary-soft)' : 'var(--app-surface)',
+                      borderColor: 'var(--app-border)',
+                      color: usePreviousDay ? 'var(--app-primary-strong)' : 'var(--app-text-secondary)',
                     }}
                   >
                     昨天
@@ -326,7 +326,7 @@ export function SolidFoodForm({
                 </ToggleGroup>
               </Field>
               <Field data-invalid={timeInvalid}>
-                <FieldLabel htmlFor="solid-food-time" style={{ color: '#8B7E74' }}>
+                <FieldLabel htmlFor="solid-food-time" style={{ color: 'var(--app-text-secondary)' }}>
                   时间
                 </FieldLabel>
                 <Input
@@ -338,18 +338,18 @@ export function SolidFoodForm({
                   aria-invalid={timeInvalid}
                   className="h-12 px-3 text-base tabular-nums"
                   style={{
-                    backgroundColor: '#FFFCF8',
-                    borderColor: '#EDE5DC',
-                    color: '#3D3229',
+                    backgroundColor: 'var(--app-surface)',
+                    borderColor: 'var(--app-border)',
+                    color: 'var(--app-text)',
                     WebkitAppearance: 'none',
                   }}
                 />
-                {timeInvalid ? <FieldError style={{ color: '#E8836B' }}>{error}</FieldError> : null}
+                {timeInvalid ? <FieldError style={{ color: 'var(--app-danger)' }}>{error}</FieldError> : null}
               </Field>
             </FieldGroup>
 
             <Field>
-              <FieldLabel htmlFor="solid-food-note" style={{ color: '#8B7E74' }}>
+              <FieldLabel htmlFor="solid-food-note" style={{ color: 'var(--app-text-secondary)' }}>
                 备注（选填）
               </FieldLabel>
               <Textarea
@@ -361,22 +361,22 @@ export function SolidFoodForm({
                 rows={3}
                 className="min-h-20 resize-none px-4 py-3 text-base"
                 style={{
-                  backgroundColor: '#FFFCF8',
-                  borderColor: '#EDE5DC',
-                  color: '#3D3229',
+                  backgroundColor: 'var(--app-surface)',
+                  borderColor: 'var(--app-border)',
+                  color: 'var(--app-text)',
                 }}
               />
             </Field>
 
-            {formError ? <FieldError style={{ color: '#E8836B' }}>{formError}</FieldError> : null}
+            {formError ? <FieldError style={{ color: 'var(--app-danger)' }}>{formError}</FieldError> : null}
           </FieldGroup>
 
           <div className="mt-5 flex shrink-0 flex-col gap-2">
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl py-4 text-lg font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: '#6F9B78' }}
+              className="w-full rounded-xl py-4 text-lg font-medium text-app-on-accent transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--app-success)' }}
             >
               {submitting ? <Spinner data-icon="inline-start" /> : null}
               {submitting ? '保存中' : '确认'}

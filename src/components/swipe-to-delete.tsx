@@ -79,7 +79,7 @@ export function SwipeToDelete({ children, deleteLabel, onDelete }: SwipeToDelete
   return (
     <div
       aria-label={`记录操作：${deleteLabel}`}
-      className="relative overflow-hidden rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C95E49]"
+      className="relative overflow-hidden rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-danger-outline)]"
       onBlur={closeAfterKeyboard}
       onFocus={revealForKeyboard}
       role="group"
@@ -89,7 +89,7 @@ export function SwipeToDelete({ children, deleteLabel, onDelete }: SwipeToDelete
         aria-label={deleteLabel}
         className="absolute right-0 top-0 bottom-0 flex w-20 items-center justify-center text-sm font-medium text-white outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-white"
         onClick={onDelete}
-        style={{ backgroundColor: '#E8836B' }}
+        style={{ backgroundColor: 'var(--app-danger-fill)' }}
         tabIndex={offset === -SWIPE_DELETE_WIDTH ? 0 : -1}
       >
         删除
@@ -113,7 +113,7 @@ export function SwipeToDelete({ children, deleteLabel, onDelete }: SwipeToDelete
         <div
           aria-hidden="true"
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-pulse"
-          style={{ color: '#D8CEC4' }}
+          style={{ color: 'var(--app-text-hint)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </div>

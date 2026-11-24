@@ -54,73 +54,173 @@
     'Times New Roman', Times, serif;
 }
 
+/*
+ * Warm light theme and its night-time counterpart.
+ *
+ * The app palette is expressed as semantic tokens so the same markup can render
+ * both themes. Dark mode is a warm, low-glare "night light" theme rather than a
+ * neutral black one: espresso backgrounds keep the cosy bedroom character.
+ */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: light;
+
+  /* App palette */
+  --app-bg: #fff9f2;
+  --app-surface: #fffcf8;
+  --app-elevated: #ffffff;
+  --app-sheet: #fff9f2;
+  --app-text: #3d3229;
+  --app-text-secondary: #8b7e74;
+  --app-text-muted: #a89888;
+  --app-text-faint: #bfb3a8;
+  --app-text-ghost: #c4b8ae;
+  --app-text-hint: #d8cec4;
+  --app-border: #ede5dc;
+  --app-overlay: rgba(0, 0, 0, 0.25);
+  --app-overlay-strong: rgba(61, 50, 41, 0.3);
+  --app-primary: #d4a76a;
+  --app-primary-strong: #c49556;
+  --app-primary-soft: #fff3e6;
+  --app-on-accent: #ffffff;
+  --app-danger: #e8836b;
+  --app-danger-strong: #c96f5b;
+  --app-danger-fill: #e8836b;
+  --app-danger-outline: #c95e49;
+  --app-success: #6f9b78;
+  --app-success-strong: #5f8b6a;
+  --app-success-soft: #eef5ef;
+  --app-success-soft-alt: #f0f7f2;
+  --app-success-line: #d4e2d9;
+  --app-awake: #7ba68c;
+  --app-awake-alt: #7baf8e;
+  --app-poop: #b8a08a;
+  --app-poop-strong: #c4a882;
+  --app-poop-soft: #f5ede6;
+  --app-med: #8b9eaf;
+  --app-med-strong: #758c9a;
+  --app-med-icon: #7f96a5;
+  --app-med-soft: #eef2f6;
+  --app-med-soft-alt: #eef1f3;
+  --app-neutral: #6f6258;
+  --app-neutral-soft: #f1e9e0;
+  --app-chart-line: #d9917a;
+  --app-chart-bar: #e3b87a;
+  --app-chart-grid: #f1e5d8;
+  --app-warm-muted: #8f7968;
+
+  /* shadcn/ui tokens kept in the same warm family */
+  --background: var(--app-bg);
+  --foreground: var(--app-text);
+  --card: var(--app-surface);
+  --card-foreground: var(--app-text);
+  --popover: var(--app-surface);
+  --popover-foreground: var(--app-text);
+  --primary: var(--app-primary);
+  --primary-foreground: var(--app-on-accent);
+  --secondary: var(--app-primary-soft);
+  --secondary-foreground: var(--app-primary-strong);
+  --muted: var(--app-primary-soft);
+  --muted-foreground: var(--app-text-muted);
+  --accent: var(--app-primary-soft);
+  --accent-foreground: var(--app-primary-strong);
+  --destructive: var(--app-danger);
+  --border: var(--app-border);
+  --input: var(--app-border);
+  --ring: var(--app-primary);
+  --chart-1: #d9917a;
+  --chart-2: #e3b87a;
+  --chart-3: #6f9b78;
+  --chart-4: #8b9eaf;
+  --chart-5: #b8a08a;
+  --sidebar: var(--app-surface);
+  --sidebar-foreground: var(--app-text);
+  --sidebar-primary: var(--app-primary);
+  --sidebar-primary-foreground: var(--app-on-accent);
+  --sidebar-accent: var(--app-primary-soft);
+  --sidebar-accent-foreground: var(--app-primary-strong);
+  --sidebar-border: var(--app-border);
+  --sidebar-ring: var(--app-primary);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+
+  /* App palette — warm espresso night */
+  --app-bg: #171310;
+  --app-surface: #201a15;
+  --app-elevated: #241e18;
+  --app-sheet: #1d1813;
+  --app-text: #f4ede4;
+  --app-text-secondary: #c4b5a6;
+  --app-text-muted: #a99a8b;
+  --app-text-faint: #9a8c7e;
+  --app-text-ghost: #7e7165;
+  --app-text-hint: #6b5f53;
+  --app-border: #37302a;
+  --app-overlay: rgba(0, 0, 0, 0.55);
+  --app-overlay-strong: rgba(0, 0, 0, 0.62);
+  --app-primary: #d9ac72;
+  --app-primary-strong: #e0b57c;
+  --app-primary-soft: #35291c;
+  --app-on-accent: #1b1510;
+  --app-danger: #f0907a;
+  --app-danger-strong: #f0907a;
+  --app-danger-fill: #c96f5b;
+  --app-danger-outline: #e8836b;
+  --app-success: #8fbe9c;
+  --app-success-strong: #8fbe9c;
+  --app-success-soft: #24312a;
+  --app-success-soft-alt: #223029;
+  --app-success-line: #3b5446;
+  --app-awake: #8fbe9c;
+  --app-awake-alt: #86b88f;
+  --app-poop: #c9ae94;
+  --app-poop-strong: #d2b99f;
+  --app-poop-soft: #2e251d;
+  --app-med: #a3b6c8;
+  --app-med-strong: #8fa6b8;
+  --app-med-icon: #93a9ba;
+  --app-med-soft: #232c33;
+  --app-med-soft-alt: #232b31;
+  --app-neutral: #c9baac;
+  --app-neutral-soft: #2a241e;
+  --app-chart-line: #e09b84;
+  --app-chart-bar: #c99a5e;
+  --app-chart-grid: #3a322a;
+  --app-warm-muted: #c0a78f;
+
+  --background: var(--app-bg);
+  --foreground: var(--app-text);
+  --card: var(--app-surface);
+  --card-foreground: var(--app-text);
+  --popover: var(--app-surface);
+  --popover-foreground: var(--app-text);
+  --primary: var(--app-primary);
+  --primary-foreground: var(--app-on-accent);
+  --secondary: var(--app-primary-soft);
+  --secondary-foreground: var(--app-primary-strong);
+  --muted: var(--app-primary-soft);
+  --muted-foreground: var(--app-text-muted);
+  --accent: var(--app-primary-soft);
+  --accent-foreground: var(--app-primary-strong);
+  --destructive: var(--app-danger);
+  --border: var(--app-border);
+  --input: var(--app-border);
+  --ring: var(--app-primary);
+  --chart-1: #e09b84;
+  --chart-2: #c99a5e;
+  --chart-3: #8fbe9c;
+  --chart-4: #a3b6c8;
+  --chart-5: #c9ae94;
+  --sidebar: var(--app-surface);
+  --sidebar-foreground: var(--app-text);
+  --sidebar-primary: var(--app-primary);
+  --sidebar-primary-foreground: var(--app-on-accent);
+  --sidebar-accent: var(--app-primary-soft);
+  --sidebar-accent-foreground: var(--app-primary-strong);
+  --sidebar-border: var(--app-border);
+  --sidebar-ring: var(--app-primary);
 }
 
 @layer base {
@@ -132,8 +232,18 @@
   }
 }
 
+html {
+  background-color: var(--app-bg);
+}
+
 body {
   @apply font-sans;
+  background-color: var(--app-bg);
+}
+
+/* Text that sits on a filled accent button (white by day, espresso ink at night). */
+.text-app-on-accent {
+  color: var(--app-on-accent);
 }
 
 /* Hide scrollbar for button carousel */
