@@ -2,38 +2,58 @@
 
 这是一个基于 [Next.js 16](https://nextjs.org) + [shadcn/ui](https://ui.shadcn.com) 的宝宝喂奶记录应用，使用本地 SQLite 保存房间和记录数据。
 
-## 快速开始
+## 本地启动
 
-### 启动开发服务器
+### 环境要求
+
+- Node.js 20.9 或更高版本（推荐 20 LTS，与 `Dockerfile` 一致）
+- pnpm 9 或更高版本（项目在 `preinstall` 中强制使用 pnpm，npm / yarn 会被拒绝）
+- `better-sqlite3` 依赖原生模块；若安装时没有匹配当前 Node.js 版本的预编译包，需要本机编译环境：macOS 安装 Xcode Command Line Tools（`xcode-select --install`），Linux 安装 `python3 make g++`
+
+### 1. 安装依赖
 
 ```bash
 pnpm install
+```
+
+### 2. 启动开发服务器
+
+```bash
 pnpm run dev
 ```
 
-启动后，在浏览器中打开 [http://localhost:5000](http://localhost:5000) 查看应用。
+启动后访问 [http://localhost:5000](http://localhost:5000)。开发服务器支持热更新，修改代码后页面会自动刷新。
 
-开发服务器支持热更新，修改代码后页面会自动刷新。
-
-### 构建生产版本
+默认端口为 5000。若端口被占用，可通过 `DEPLOY_RUN_PORT` 指定其他端口：
 
 ```bash
-pnpm run build
+DEPLOY_RUN_PORT=5001 pnpm run dev
 ```
 
-### 启动生产服务器
+### 3. 生产模式本地运行
 
 ```bash
-pnpm run start
+pnpm run build   # 构建 Next.js 应用与 dist/server.js
+NODE_ENV=production pnpm run start
 ```
 
-默认数据库文件为 `data/baby-feed.sqlite`。如需指定其他位置，可设置：
+`pnpm run start` 运行的是构建产物 `dist/server.js`，因此需要先执行 `pnpm run build`。端口同样可通过 `DEPLOY_RUN_PORT` 修改。
+
+### 数据库
+
+默认数据库文件为 `data/baby-feed.sqlite`，首次运行时会自动创建目录、表（`rooms`、`feed_records`、`poop_records`、`medication_records`、`awake_records`、`solid_food_records`）和索引，无需 Supabase 项目或额外环境变量。
+
+如需指定其他位置：
 
 ```bash
 SQLITE_PATH=/absolute/path/baby-feed.sqlite pnpm run dev
 ```
 
-SQLite 迁移说明：应用启动时会自动创建 `rooms`、`feed_records`、`poop_records`、`medication_records` 和 `awake_records` 表及索引，无需 Supabase 项目或环境变量。
+### 常见问题
+
+- **`pnpm install` 提示必须使用 pnpm**：执行 `corepack enable` 启用 pnpm，或安装 pnpm 9+。
+- **端口 5000 被占用**：macOS 的“隔空播放接收器”默认占用 5000 端口，可用 `DEPLOY_RUN_PORT=5001 pnpm run dev` 换端口。
+- **`better-sqlite3` 报 `NODE_MODULE_VERSION` 不匹配**：切换 Node.js 版本后 native 模块需要重新编译，执行 `pnpm rebuild better-sqlite3`；失败时检查上面的编译环境。
 
 ## 项目结构
 
