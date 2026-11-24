@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inspector } from 'react-dev-inspector';
+import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -28,7 +29,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#FFF8F0',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FFF9F2' },
+    { media: '(prefers-color-scheme: dark)', color: '#171310' },
+  ],
 };
 
 export default function RootLayout({
@@ -39,10 +43,17 @@ export default function RootLayout({
   const isDev = process.env.NODE_ENV !== 'production';
 
   return (
-    <html lang="zh-CN">
-      <body className={`antialiased`} style={{ backgroundColor: '#FFF8F0' }}>
-        {isDev && <Inspector />}
-        {children}
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className="antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {isDev && <Inspector />}
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

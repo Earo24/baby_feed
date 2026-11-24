@@ -149,14 +149,17 @@ test('requires HTTP success before refreshing feed and closing medication confir
   assert.match(medicationHandler, /if \(res\.ok && json\.success\) \{[\s\S]*setShowMedConfirm\(false\)/);
 });
 
-test('declares the multi-record event labels and approved palette', () => {
+test('declares the multi-record event labels and approved palette tokens', () => {
   assert.match(trendSource, /便便/);
   assert.match(trendSource, /吃药/);
   assert.match(trendSource, /辅食/);
   assert.match(trendSource, /清醒/);
-  for (const color of ['#B8A08A', '#8B9EAF', '#6F9B78', '#7BAF8E', '#FFFCF8']) {
-    assert.match(trendSource, new RegExp(color.replace('#', '\\#')));
+  const globals = readFileSync(new URL('../src/app/globals.css', import.meta.url), 'utf8');
+  for (const token of ['--app-poop', '--app-med', '--app-success', '--app-awake', '--app-surface']) {
+    assert.match(trendSource, new RegExp(token), `${token} should be used by the trend chart`);
+    assert.match(globals, new RegExp(`${token}:`), `${token} should have a light and dark value`);
   }
+  assert.match(globals, /^\.dark \{/m);
 });
 
 test('renders event markers and an explicit trend tooltip from event points', () => {
@@ -166,8 +169,24 @@ test('renders event markers and an explicit trend tooltip from event points', ()
   assert.match(trendSource, /total_ml/);
   assert.match(trendSource, /有奶量记录：\{point\.measured_count\} 次/);
   assert.match(trendSource, /awake_minutes/);
-  assert.match(trendSource, /fill=\{['"]#E3B87A['"]\}|#D9917A/);
+  assert.match(trendSource, /--app-chart-bar|--app-chart-line/);
 });
+
+test('offers a classic theme switch backed by next-themes', () => {
+  const toggleSource = readFileSync(
+    new URL('../src/components/theme-toggle.tsx', import.meta.url),
+    'utf8',
+  );
+  const layoutSource = readFileSync(new URL('../src/app/layout.tsx', import.meta.url), 'utf8');
+  assert.match(toggleSource, /useTheme/);
+  assert.match(toggleSource, /setTheme\(/);
+  assert.match(toggleSource, /data-theme-toggle/);
+  assert.match(toggleSource, /aria-label=/);
+  assert.match(layoutSource, /ThemeProvider/);
+  assert.match(layoutSource, /attribute="class"/);
+  assert.match(layoutSource, /suppressHydrationWarning/);
+});
+
 
 test('anchors event markers to the shared chart plot top', () => {
   assert.match(trendSource, /SHARED_CHART_TOP_MARGIN\s*=\s*56/);

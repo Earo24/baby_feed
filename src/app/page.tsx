@@ -6,6 +6,7 @@ import { Utensils } from 'lucide-react';
 import { SolidFoodForm, SolidFoodRecordRow } from '@/components/solid-food';
 import { FeedVolumeTrend } from '@/components/feed-volume-trend';
 import { SwipeToDelete } from '@/components/swipe-to-delete';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { getActionCarouselLoopPosition } from '@/lib/action-carousel';
 import { coordinateAwakeStart, getPendingAwakeRecord } from '@/lib/awake-start';
 import type { PendingAwakeStart } from '@/lib/awake-start';
@@ -871,10 +872,10 @@ export default function Home() {
   // Loading
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FFF9F2' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--app-bg)' }}>
         <div className="flex flex-col items-center gap-3">
-          <BottleIcon size={32} color="#D4A76A" />
-          <p className="text-sm" style={{ color: '#A89888' }}>加载中</p>
+          <BottleIcon size={32} color="var(--app-primary)" />
+          <p className="text-sm" style={{ color: 'var(--app-text-muted)' }}>加载中</p>
         </div>
       </div>
     );
@@ -883,58 +884,59 @@ export default function Home() {
   // Setup
   if (showSetup || !room) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#FFF9F2' }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--app-bg)' }}>
+        <ThemeToggle className="fixed right-3 top-3 z-10" />
         <div className="w-full max-w-xs">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ backgroundColor: '#FFF3E6' }}>
-              <BottleIcon size={28} color="#D4A76A" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ backgroundColor: 'var(--app-primary-soft)' }}>
+              <BottleIcon size={28} color="var(--app-primary)" />
             </div>
-            <h1 className="text-xl font-semibold" style={{ color: '#3D3229' }}>喂奶记录</h1>
-            <p className="mt-1 text-sm" style={{ color: '#A89888' }}>家人一起记录，不再遗忘</p>
+            <h1 className="text-xl font-semibold" style={{ color: 'var(--app-text)' }}>喂奶记录</h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--app-text-muted)' }}>家人一起记录，不再遗忘</p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B7E74' }}>你的称呼</label>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>你的称呼</label>
               <input
                 type="text"
                 value={feederName}
                 onChange={(e) => setFeederName(e.target.value)}
                 placeholder="妈妈、爸爸、奶奶"
                 className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition-colors"
-                style={{ borderColor: '#EDE5DC', color: '#3D3229', backgroundColor: '#FFFCF8' }}
-                onFocus={(e) => e.target.style.borderColor = '#D4A76A'}
-                onBlur={(e) => e.target.style.borderColor = '#EDE5DC'}
+                style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-surface)' }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--app-primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--app-border)'}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#8B7E74' }}>宝宝昵称</label>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>宝宝昵称</label>
               <input
                 type="text"
                 value={babyName}
                 onChange={(e) => setBabyName(e.target.value)}
                 placeholder="小豆子"
                 className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition-colors"
-                style={{ borderColor: '#EDE5DC', color: '#3D3229', backgroundColor: '#FFFCF8' }}
-                onFocus={(e) => e.target.style.borderColor = '#D4A76A'}
-                onBlur={(e) => e.target.style.borderColor = '#EDE5DC'}
+                style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-surface)' }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--app-primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--app-border)'}
               />
             </div>
 
             <button
               onClick={() => { haptic('medium'); handleCreateRoom(); }}
-              className="w-full py-3 rounded-xl text-white text-sm font-medium transition-transform active:scale-[0.98]"
-              style={{ backgroundColor: '#D4A76A' }}
+              className="w-full py-3 rounded-xl text-app-on-accent text-sm font-medium transition-transform active:scale-[0.98]"
+              style={{ backgroundColor: 'var(--app-primary)' }}
             >
               创建房间
             </button>
           </div>
 
           <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px" style={{ backgroundColor: '#EDE5DC' }} />
-            <span className="text-xs" style={{ color: '#BFB3A8' }}>或加入房间</span>
-            <div className="flex-1 h-px" style={{ backgroundColor: '#EDE5DC' }} />
+            <div className="flex-1 h-px" style={{ backgroundColor: 'var(--app-border)' }} />
+            <span className="text-xs" style={{ color: 'var(--app-text-faint)' }}>或加入房间</span>
+            <div className="flex-1 h-px" style={{ backgroundColor: 'var(--app-border)' }} />
           </div>
 
           <div className="flex gap-2">
@@ -945,14 +947,14 @@ export default function Home() {
               placeholder="房间码"
               maxLength={6}
               className="flex-1 px-3.5 py-2.5 rounded-xl border text-sm text-center tracking-[0.3em] outline-none transition-colors"
-              style={{ borderColor: '#EDE5DC', color: '#3D3229', backgroundColor: '#FFFCF8' }}
-              onFocus={(e) => e.target.style.borderColor = '#D4A76A'}
-              onBlur={(e) => e.target.style.borderColor = '#EDE5DC'}
+              style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'var(--app-surface)' }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--app-primary)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--app-border)'}
             />
             <button
               onClick={() => { haptic('medium'); handleJoinRoom(); }}
               className="px-5 py-2.5 rounded-xl text-sm font-medium transition-transform active:scale-[0.98]"
-              style={{ backgroundColor: '#F0E6DA', color: '#8B7E74' }}
+              style={{ backgroundColor: 'var(--app-neutral-soft)', color: 'var(--app-text-secondary)' }}
             >
               加入
             </button>
@@ -973,11 +975,12 @@ export default function Home() {
 
   return (
     <>
-    <div inert={showMoreRecords} className="min-h-screen pb-6" style={{ backgroundColor: '#FFF9F2', overscrollBehavior: 'none' }}>
+    <div inert={showMoreRecords} className="min-h-screen pb-6" style={{ backgroundColor: 'var(--app-bg)', overscrollBehavior: 'none' }}>
       {/* Header - minimal */}
       <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-        <span className="text-sm font-medium" style={{ color: '#3D3229' }}>{room.name}</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--app-text)' }}>{room.name}</span>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <button
             onClick={() => {
               haptic('light');
@@ -988,12 +991,12 @@ export default function Home() {
               }
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium"
-            style={{ backgroundColor: '#FFF3E6', color: '#C49556' }}
+            style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-primary-strong)' }}
           >
-            <ShareIcon size={14} color="#C49556" />
+            <ShareIcon size={14} color="var(--app-primary-strong)" />
             {room.code}
           </button>
-          <button onClick={() => { haptic('light'); handleLeaveRoom(); }} className="p-2 rounded-lg" style={{ color: '#C4B8AE' }}>
+          <button onClick={() => { haptic('light'); handleLeaveRoom(); }} className="p-2 rounded-lg" style={{ color: 'var(--app-text-ghost)' }}>
             <LogoutIcon size={18} />
           </button>
         </div>
@@ -1003,78 +1006,78 @@ export default function Home() {
       <div className="px-5 pt-10 pb-6 text-center">
         {room.lastFeed && lastFeedElapsed ? (
           <div>
-            <p className="text-sm tracking-wide mb-4" style={{ color: '#A89888' }}>距上次喂奶</p>
+            <p className="text-sm tracking-wide mb-4" style={{ color: 'var(--app-text-muted)' }}>距上次喂奶</p>
             <div className="flex items-baseline justify-center gap-2">
               <span
                 className="text-8xl font-light tabular-nums tracking-tight"
-                style={{ color: lastFeedElapsed.urgent ? '#E8836B' : '#3D3229' }}
+                style={{ color: lastFeedElapsed.urgent ? 'var(--app-danger)' : 'var(--app-text)' }}
               >
                 {lastFeedElapsed.value}
               </span>
-              <span className="text-lg" style={{ color: lastFeedElapsed.urgent ? '#E8836B' : '#A89888' }}>
+              <span className="text-lg" style={{ color: lastFeedElapsed.urgent ? 'var(--app-danger)' : 'var(--app-text-muted)' }}>
                 {lastFeedElapsed.unit}
               </span>
             </div>
             {lastFeedElapsed.urgent && (
-              <p className="text-base mt-4 font-medium" style={{ color: '#E8836B' }}>该喂奶啦</p>
+              <p className="text-base mt-4 font-medium" style={{ color: 'var(--app-danger)' }}>该喂奶啦</p>
             )}
           </div>
         ) : (
           <div>
-            <p className="text-sm tracking-wide mb-4" style={{ color: '#A89888' }}>还没有记录</p>
-            <p className="text-3xl font-light" style={{ color: '#3D3229' }}>点击下方开始</p>
+            <p className="text-sm tracking-wide mb-4" style={{ color: 'var(--app-text-muted)' }}>还没有记录</p>
+            <p className="text-3xl font-light" style={{ color: 'var(--app-text)' }}>点击下方开始</p>
           </div>
         )}
       </div>
 
       {/* Today Stats - thin bar */}
       {(todayCount > 0 || todaySolidFoodCount > 0 || (room.poops && room.poops.length > 0) || (room.medications && room.medications.length > 0) || (room.awakes && room.awakes.length > 0)) && (
-        <div className="mx-5 mb-6 py-3 rounded-xl" style={{ backgroundColor: '#FFFCF8' }}>
+        <div className="mx-5 mb-6 py-3 rounded-xl" style={{ backgroundColor: 'var(--app-surface)' }}>
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>{todayCount}</span>
-              <span className="text-sm" style={{ color: '#A89888' }}>次</span>
+              <span className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-text)' }}>{todayCount}</span>
+              <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>次</span>
             </div>
             <div className="flex shrink-0 items-center gap-6">
-              <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
+              <div className="h-4 w-px shrink-0" style={{ backgroundColor: 'var(--app-border)' }} />
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-semibold tabular-nums" style={{ color: '#D4A76A' }}>{todayTotalMl}</span>
-                <span className="text-sm" style={{ color: '#A89888' }}>ml</span>
+                <span className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-primary)' }}>{todayTotalMl}</span>
+                <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>ml</span>
               </div>
             </div>
             {todaySolidFoodCount > 0 ? (
               <div className="flex shrink-0 items-center gap-6">
-                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: 'var(--app-border)' }} />
                 <div className="flex items-baseline gap-1">
-                  <span className="text-sm" style={{ color: '#6F9B78' }}>辅食</span>
-                  <span className="text-xl font-semibold tabular-nums" style={{ color: '#6F9B78' }}>{todaySolidFoodCount}</span>
-                  <span className="text-sm" style={{ color: '#6F9B78' }}>次</span>
+                  <span className="text-sm" style={{ color: 'var(--app-success)' }}>辅食</span>
+                  <span className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-success)' }}>{todaySolidFoodCount}</span>
+                  <span className="text-sm" style={{ color: 'var(--app-success)' }}>次</span>
                 </div>
               </div>
             ) : null}
             {room.poops && room.poops.length > 0 && (
               <div className="flex shrink-0 items-center gap-6">
-                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: 'var(--app-border)' }} />
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-semibold tabular-nums" style={{ color: '#B8A08A' }}>{room.poops.length}</span>
-                  <span className="text-sm" style={{ color: '#A89888' }}>便</span>
+                  <span className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-poop)' }}>{room.poops.length}</span>
+                  <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>便</span>
                 </div>
               </div>
             )}
             {room.medications && room.medications.length > 0 && (
               <div className="flex shrink-0 items-center gap-6">
-                <div className="h-4 w-px shrink-0" style={{ backgroundColor: '#EDE5DC' }} />
+                <div className="h-4 w-px shrink-0" style={{ backgroundColor: 'var(--app-border)' }} />
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-semibold tabular-nums" style={{ color: '#8B9EAF' }}>{room.medications.length}</span>
-                  <span className="text-sm" style={{ color: '#A89888' }}>药</span>
+                  <span className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-med)' }}>{room.medications.length}</span>
+                  <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>药</span>
                 </div>
               </div>
             )}
           </div>
           {room.awakes && room.awakes.length > 0 && (
             <div className="flex items-center justify-center gap-1 mt-1.5">
-              <span className="text-sm" style={{ color: '#A89888' }}>清醒</span>
-              <span className="text-base font-semibold tabular-nums" style={{ color: '#7BA68A' }}>
+              <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>清醒</span>
+              <span className="text-base font-semibold tabular-nums" style={{ color: 'var(--app-awake)' }}>
                 {(() => {
                   const totalMin = room.awakes.reduce((acc: number, a: AwakeRecord) => {
                     if (!a.ended_at) return acc;
@@ -1093,16 +1096,16 @@ export default function Home() {
 
       {/* Feeder Name - inline */}
       <div className="px-5 mb-5 flex items-center gap-2.5">
-        <span className="text-sm" style={{ color: '#A89888' }}>记录人</span>
+        <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>记录人</span>
         <input
           type="text"
           value={feederName}
           onChange={(e) => { setFeederName(e.target.value); if (e.target.value) localStorage.setItem('feederName', e.target.value); }}
           placeholder="谁在喂"
           className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none transition-colors"
-          style={{ borderColor: '#EDE5DC', color: '#3D3229', backgroundColor: 'transparent' }}
-          onFocus={(e) => e.target.style.borderColor = '#D4A76A'}
-          onBlur={(e) => e.target.style.borderColor = '#EDE5DC'}
+          style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', backgroundColor: 'transparent' }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--app-primary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--app-border)'}
         />
       </div>
 
@@ -1151,12 +1154,12 @@ export default function Home() {
                   disabled={submitting}
                   tabIndex={setIdx === 1 ? 0 : -1}
                   className="rounded-full flex flex-col items-center justify-center gap-1 disabled:opacity-50"
-                  style={{ backgroundColor: '#F1E9E0', color: '#6F6258', width: 70, height: 70 }}
+                  style={{ backgroundColor: 'var(--app-neutral-soft)', color: 'var(--app-neutral)', width: 70, height: 70 }}
                 >
                   <span aria-hidden="true" className="flex items-center gap-1">
-                    <span data-more-preview="awake"><EyeOpenIcon size={15} color="#6F9B78" /></span>
-                    <span data-more-divider className="h-4 w-px" style={{ backgroundColor: '#D8CEC4' }} />
-                    <span data-more-preview="medication"><PillIcon size={15} color="#7F96A5" /></span>
+                    <span data-more-preview="awake"><EyeOpenIcon size={15} color="var(--app-success)" /></span>
+                    <span data-more-divider className="h-4 w-px" style={{ backgroundColor: 'var(--app-text-hint)' }} />
+                    <span data-more-preview="medication"><PillIcon size={15} color="var(--app-med-icon)" /></span>
                   </span>
                   <span data-btn-label className="text-[10px] font-medium">更多</span>
                 </button>
@@ -1168,10 +1171,10 @@ export default function Home() {
                   onClick={() => { haptic('medium'); handleQuickAddPoop(); }}
                   disabled={submitting}
                   tabIndex={setIdx === 1 ? 0 : -1}
-                  className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
-                  style={{ backgroundColor: '#C4A882', width: 70, height: 70 }}
+                  className="rounded-full flex flex-col items-center justify-center text-app-on-accent gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--app-poop-strong)', width: 70, height: 70 }}
                 >
-                  <PoopIcon size={16} color="white" />
+                  <PoopIcon size={16} color="var(--app-on-accent)" />
                   <span data-btn-label className="text-[10px]">便便</span>
                 </button>
               </div>
@@ -1182,8 +1185,8 @@ export default function Home() {
                   onClick={() => { haptic('heavy'); handleQuickAdd(); }}
                   disabled={submitting}
                   tabIndex={setIdx === 1 ? 0 : -1}
-                  className="rounded-full text-white font-medium flex flex-col items-center justify-center gap-1 disabled:opacity-50"
-                  style={{ backgroundColor: '#D4A76A', width: 70, height: 70 }}
+                  className="rounded-full text-app-on-accent font-medium flex flex-col items-center justify-center gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--app-primary)', width: 70, height: 70 }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M8 2h8l1 7a5 5 0 0 1-10 0l1-7z"/>
@@ -1201,8 +1204,8 @@ export default function Home() {
                   onClick={() => { haptic('medium'); handleQuickAddSolidFood(); }}
                   disabled={submitting}
                   tabIndex={setIdx === 1 ? 0 : -1}
-                  className="rounded-full flex flex-col items-center justify-center text-white gap-1 disabled:opacity-50"
-                  style={{ backgroundColor: '#6F9B78', width: 70, height: 70 }}
+                  className="rounded-full flex flex-col items-center justify-center text-app-on-accent gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--app-success)', width: 70, height: 70 }}
                 >
                   <Utensils size={16} />
                   <span data-btn-label className="text-[10px]">辅食</span>
@@ -1231,7 +1234,7 @@ export default function Home() {
             onClick={handleEndAwake}
             disabled={submitting}
             className="flex min-h-12 w-full items-center gap-2 rounded-xl px-4 text-left transition-transform active:scale-[0.98] disabled:opacity-50"
-            style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
+            style={{ backgroundColor: 'var(--app-success-soft)', color: 'var(--app-success-strong)' }}
           >
             <EyeOpenIcon size={18} />
             <span className="text-sm">已清醒 {awakeDuration}</span>
@@ -1244,17 +1247,17 @@ export default function Home() {
       {showFeedConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-4"
-          style={{ backgroundColor: 'rgba(61,50,41,0.25)' }}
+          style={{ backgroundColor: 'var(--app-overlay)' }}
           onClick={() => { haptic('light'); handleSkipConfirm(); }}
         >
           <div
             className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6"
-            style={{ backgroundColor: '#FFFFFF' }}
+            style={{ backgroundColor: 'var(--app-elevated)' }}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Time */}
             <div className="mb-4">
-              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: '#A89888' }}>
+              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: 'var(--app-text-muted)' }}>
                 <ClockIcon size={14} /> 时间
               </label>
               <input
@@ -1262,7 +1265,7 @@ export default function Home() {
                 value={editTime}
                 onChange={(e) => setEditTime(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg border text-base outline-none"
-                style={{ borderColor: '#EDE5DC', color: '#3D3229', WebkitAppearance: 'none' }}
+                style={{ borderColor: 'var(--app-border)', color: 'var(--app-text)', WebkitAppearance: 'none' }}
               />
               {(() => {
                 const [eh, em] = editTime.split(':').map(Number);
@@ -1273,9 +1276,9 @@ export default function Home() {
                   onClick={() => { haptic('light'); setUsePrevDay(!usePrevDay); }}
                   className="mt-2 text-sm px-3 py-1.5 rounded"
                   style={{
-                    color: usePrevDay ? '#C49556' : '#A89888',
-                    background: usePrevDay ? '#FFF3E6' : 'transparent',
-                    border: usePrevDay ? '1px solid #EDE5DC' : '1px solid transparent',
+                    color: usePrevDay ? 'var(--app-primary-strong)' : 'var(--app-text-muted)',
+                    background: usePrevDay ? 'var(--app-primary-soft)' : 'transparent',
+                    border: usePrevDay ? '1px solid var(--app-border)' : '1px solid transparent',
                   }}
                 >
                   {usePrevDay ? '✓ 记为昨天' : '记为昨天'}
@@ -1285,25 +1288,25 @@ export default function Home() {
 
             {/* Amount */}
             <div className="mb-5">
-              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: '#A89888' }}>
+              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: 'var(--app-text-muted)' }}>
                 <BottleIcon size={14} /> 奶量
               </label>
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => { haptic('light'); setEditAmount(Math.max(10, editAmount - 10)); }}
                   className="w-11 h-11 rounded-lg text-base font-medium flex items-center justify-center transition-transform active:scale-90"
-                  style={{ backgroundColor: '#FFF3E6', color: '#D4A76A' }}
+                  style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-primary)' }}
                 >
                   -
                 </button>
                 <div className="flex-1 text-center">
-                  <span className="text-3xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>{editAmount}</span>
-                  <span className="text-sm ml-0.5" style={{ color: '#A89888' }}>ml</span>
+                  <span className="text-3xl font-semibold tabular-nums" style={{ color: 'var(--app-text)' }}>{editAmount}</span>
+                  <span className="text-sm ml-0.5" style={{ color: 'var(--app-text-muted)' }}>ml</span>
                 </div>
                 <button
                   onClick={() => { haptic('light'); setEditAmount(Math.min(300, editAmount + 10)); }}
                   className="w-11 h-11 rounded-lg text-base font-medium flex items-center justify-center transition-transform active:scale-90"
-                  style={{ backgroundColor: '#FFF3E6', color: '#D4A76A' }}
+                  style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-primary)' }}
                 >
                   +
                 </button>
@@ -1315,8 +1318,8 @@ export default function Home() {
                     onClick={() => { haptic('light'); setEditAmount(v); }}
                     className="px-3 py-1.5 rounded-md text-sm transition-transform active:scale-95"
                     style={{
-                      backgroundColor: editAmount === v ? '#D4A76A' : '#FFF3E6',
-                      color: editAmount === v ? '#FFFFFF' : '#C49556',
+                      backgroundColor: editAmount === v ? 'var(--app-primary)' : 'var(--app-primary-soft)',
+                      color: editAmount === v ? 'var(--app-on-accent)' : 'var(--app-primary-strong)',
                     }}
                   >
                     {v}
@@ -1329,8 +1332,8 @@ export default function Home() {
             <button
               onClick={() => { haptic('medium'); handleConfirm(); }}
               disabled={submitting}
-              className="w-full py-4 rounded-xl text-white font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: '#D4A76A' }}
+              className="w-full py-4 rounded-xl text-app-on-accent font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--app-primary)' }}
             >
               {submitting ? '保存中' : '确认'}
             </button>
@@ -1340,25 +1343,25 @@ export default function Home() {
 
       {/* Poop Confirm Modal */}
       {showPoopConfirm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }} onClick={() => setShowPoopConfirm(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'var(--app-overlay)' }} onClick={() => setShowPoopConfirm(false)}>
           <div
             className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
-            style={{ backgroundColor: '#FFF9F2' }}
+            style={{ backgroundColor: 'var(--app-sheet)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <PoopIcon size={18} color="#B8A08A" />
-                <span className="text-base font-medium" style={{ color: '#3D3229' }}>便便记录</span>
+                <PoopIcon size={18} color="var(--app-poop)" />
+                <span className="text-base font-medium" style={{ color: 'var(--app-text)' }}>便便记录</span>
               </div>
-              <button onClick={() => setShowPoopConfirm(false)} className="p-1" style={{ color: '#BFB3A8' }}>
+              <button onClick={() => setShowPoopConfirm(false)} className="p-1" style={{ color: 'var(--app-text-faint)' }}>
                 <CloseIcon size={18} />
               </button>
             </div>
 
             {/* Time */}
             <div className="mb-4">
-              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: '#A89888' }}>
+              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: 'var(--app-text-muted)' }}>
                 <ClockIcon size={14} /> 时间
               </label>
               <input
@@ -1366,7 +1369,7 @@ export default function Home() {
                 value={poopTime}
                 onChange={(e) => setPoopTime(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-base tabular-nums outline-none"
-                style={{ backgroundColor: '#FFFCF8', color: '#3D3229', border: '1px solid #EDE5DC', WebkitAppearance: 'none' } as React.CSSProperties}
+                style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text)', border: '1px solid var(--app-border)', WebkitAppearance: 'none' } as React.CSSProperties}
               />
               {(() => {
                 const [eh, em] = poopTime.split(':').map(Number);
@@ -1377,9 +1380,9 @@ export default function Home() {
                   onClick={() => { haptic('light'); setPoopUsePrevDay(!poopUsePrevDay); }}
                   className="mt-2 text-sm px-3 py-1.5 rounded"
                   style={{
-                    color: poopUsePrevDay ? '#B8A08A' : '#A89888',
-                    background: poopUsePrevDay ? '#F5EDE6' : 'transparent',
-                    border: poopUsePrevDay ? '1px solid #EDE5DC' : '1px solid transparent',
+                    color: poopUsePrevDay ? 'var(--app-poop)' : 'var(--app-text-muted)',
+                    background: poopUsePrevDay ? 'var(--app-poop-soft)' : 'transparent',
+                    border: poopUsePrevDay ? '1px solid var(--app-border)' : '1px solid transparent',
                   }}
                 >
                   {poopUsePrevDay ? '✓ 记为昨天' : '记为昨天'}
@@ -1389,14 +1392,14 @@ export default function Home() {
 
             {/* Note */}
             <div className="mb-5">
-              <label className="text-sm mb-2 block" style={{ color: '#A89888' }}>备注（选填）</label>
+              <label className="text-sm mb-2 block" style={{ color: 'var(--app-text-muted)' }}>备注（选填）</label>
               <input
                 type="text"
                 value={poopNote}
                 onChange={(e) => setPoopNote(e.target.value)}
                 placeholder="如：稀便、干便、正常…"
                 className="w-full px-4 py-3 rounded-xl text-base outline-none"
-                style={{ backgroundColor: '#FFFCF8', color: '#3D3229', border: '1px solid #EDE5DC' }}
+                style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text)', border: '1px solid var(--app-border)' }}
               />
             </div>
 
@@ -1404,8 +1407,8 @@ export default function Home() {
             <button
               onClick={() => { haptic('medium'); handleConfirmPoop(); }}
               disabled={submitting}
-              className="w-full py-4 rounded-xl text-white font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: '#B8A08A' }}
+              className="w-full py-4 rounded-xl text-app-on-accent font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--app-poop)' }}
             >
               {submitting ? '保存中' : '确认'}
             </button>
@@ -1415,25 +1418,25 @@ export default function Home() {
 
       {/* Medication Confirm Modal */}
       {showMedConfirm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }} onClick={() => setShowMedConfirm(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'var(--app-overlay)' }} onClick={() => setShowMedConfirm(false)}>
           <div
             className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
-            style={{ backgroundColor: '#FFF9F2' }}
+            style={{ backgroundColor: 'var(--app-sheet)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <PillIcon size={18} color="#8B9EAF" />
-                <span className="text-base font-medium" style={{ color: '#3D3229' }}>吃药记录</span>
+                <PillIcon size={18} color="var(--app-med)" />
+                <span className="text-base font-medium" style={{ color: 'var(--app-text)' }}>吃药记录</span>
               </div>
-              <button onClick={() => setShowMedConfirm(false)} className="p-1" style={{ color: '#BFB3A8' }}>
+              <button onClick={() => setShowMedConfirm(false)} className="p-1" style={{ color: 'var(--app-text-faint)' }}>
                 <CloseIcon size={18} />
               </button>
             </div>
 
             {/* Time */}
             <div className="mb-4">
-              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: '#A89888' }}>
+              <label className="flex items-center gap-1.5 text-sm mb-2" style={{ color: 'var(--app-text-muted)' }}>
                 <ClockIcon size={14} /> 时间
               </label>
               <input
@@ -1441,7 +1444,7 @@ export default function Home() {
                 value={medTime}
                 onChange={(e) => setMedTime(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-base tabular-nums outline-none"
-                style={{ backgroundColor: '#FFFCF8', color: '#3D3229', border: '1px solid #EDE5DC', WebkitAppearance: 'none' } as React.CSSProperties}
+                style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text)', border: '1px solid var(--app-border)', WebkitAppearance: 'none' } as React.CSSProperties}
               />
               {(() => {
                 const [eh, em] = medTime.split(':').map(Number);
@@ -1452,9 +1455,9 @@ export default function Home() {
                   onClick={() => { haptic('light'); setMedUsePrevDay(!medUsePrevDay); }}
                   className="mt-2 text-sm px-3 py-1.5 rounded"
                   style={{
-                    color: medUsePrevDay ? '#8B9EAF' : '#A89888',
-                    background: medUsePrevDay ? '#EEF2F6' : 'transparent',
-                    border: medUsePrevDay ? '1px solid #EDE5DC' : '1px solid transparent',
+                    color: medUsePrevDay ? 'var(--app-med)' : 'var(--app-text-muted)',
+                    background: medUsePrevDay ? 'var(--app-med-soft)' : 'transparent',
+                    border: medUsePrevDay ? '1px solid var(--app-border)' : '1px solid transparent',
                   }}
                 >
                   {medUsePrevDay ? '✓ 记为昨天' : '记为昨天'}
@@ -1464,27 +1467,27 @@ export default function Home() {
 
             {/* Medicine name */}
             <div className="mb-3">
-              <label className="text-sm mb-2 block" style={{ color: '#A89888' }}>药名（选填）</label>
+              <label className="text-sm mb-2 block" style={{ color: 'var(--app-text-muted)' }}>药名（选填）</label>
               <input
                 type="text"
                 value={medName}
                 onChange={(e) => setMedName(e.target.value)}
                 placeholder="如：维生素D、益生菌…"
                 className="w-full px-4 py-3 rounded-xl text-base outline-none"
-                style={{ backgroundColor: '#FFFCF8', color: '#3D3229', border: '1px solid #EDE5DC' }}
+                style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text)', border: '1px solid var(--app-border)' }}
               />
             </div>
 
             {/* Dosage */}
             <div className="mb-5">
-              <label className="text-sm mb-2 block" style={{ color: '#A89888' }}>剂量（选填）</label>
+              <label className="text-sm mb-2 block" style={{ color: 'var(--app-text-muted)' }}>剂量（选填）</label>
               <input
                 type="text"
                 value={medDosage}
                 onChange={(e) => setMedDosage(e.target.value)}
                 placeholder="如：1滴、半包…"
                 className="w-full px-4 py-3 rounded-xl text-base outline-none"
-                style={{ backgroundColor: '#FFFCF8', color: '#3D3229', border: '1px solid #EDE5DC' }}
+                style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text)', border: '1px solid var(--app-border)' }}
               />
             </div>
 
@@ -1492,8 +1495,8 @@ export default function Home() {
             <button
               onClick={() => { haptic('medium'); handleConfirmMed(); }}
               disabled={submitting}
-              className="w-full py-4 rounded-xl text-white font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: '#8B9EAF' }}
+              className="w-full py-4 rounded-xl text-app-on-accent font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--app-med)' }}
             >
               {submitting ? '保存中' : '确认'}
             </button>
@@ -1505,33 +1508,33 @@ export default function Home() {
       {confirmAwake && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center px-4"
-          style={{ backgroundColor: 'rgba(61, 50, 41, 0.3)' }}
+          style={{ backgroundColor: 'var(--app-overlay-strong)' }}
           onClick={() => setConfirmAwake(null)}
         >
           <div
             className="w-full max-w-sm rounded-t-2xl p-6 mb-0"
-            style={{ backgroundColor: '#FFFCF8' }}
+            style={{ backgroundColor: 'var(--app-surface)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <EyeOpenIcon size={20} color="#7BA68C" />
-                <span className="text-base font-medium" style={{ color: '#3D3229' }}>清醒记录</span>
+                <EyeOpenIcon size={20} color="var(--app-awake)" />
+                <span className="text-base font-medium" style={{ color: 'var(--app-text)' }}>清醒记录</span>
               </div>
               <button onClick={() => setConfirmAwake(null)} className="p-1">
-                <CloseIcon size={20} color="#A89888" />
+                <CloseIcon size={20} color="var(--app-text-muted)" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs mb-1.5 block" style={{ color: '#A89888' }}>醒来的时间</label>
+                <label className="text-xs mb-1.5 block" style={{ color: 'var(--app-text-muted)' }}>醒来的时间</label>
                 <input
                   type="time"
                   value={awakeTime}
                   onChange={(e) => { setAwakeTime(e.target.value); haptic('light'); }}
                   className="w-full rounded-lg px-3 py-3 text-base outline-none"
-                  style={{ backgroundColor: '#FFF3E6', color: '#3D3229', WebkitAppearance: 'none' } as React.CSSProperties}
+                  style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-text)', WebkitAppearance: 'none' } as React.CSSProperties}
                 />
                 {(() => {
                   const [sh, sm] = awakeTime.split(':').map(Number);
@@ -1542,9 +1545,9 @@ export default function Home() {
                     onClick={() => { haptic('light'); setAwakeUsePrevDay(!awakeUsePrevDay); }}
                     className="mt-2 text-sm px-3 py-1.5 rounded"
                     style={{
-                      color: awakeUsePrevDay ? '#7BA68C' : '#A89888',
-                      background: awakeUsePrevDay ? '#F0F7F2' : 'transparent',
-                      border: awakeUsePrevDay ? '1px solid #D4E2D9' : '1px solid transparent',
+                      color: awakeUsePrevDay ? 'var(--app-awake)' : 'var(--app-text-muted)',
+                      background: awakeUsePrevDay ? 'var(--app-success-soft-alt)' : 'transparent',
+                      border: awakeUsePrevDay ? '1px solid var(--app-success-line)' : '1px solid transparent',
                     }}
                   >
                     {awakeUsePrevDay ? '✓ 记为昨天' : '记为昨天'}
@@ -1552,13 +1555,13 @@ export default function Home() {
                 )}
               </div>
               <div>
-                <label className="text-xs mb-1.5 block" style={{ color: '#A89888' }}>入睡的时间</label>
+                <label className="text-xs mb-1.5 block" style={{ color: 'var(--app-text-muted)' }}>入睡的时间</label>
                 <input
                   type="time"
                   value={awakeEndTime}
                   onChange={(e) => { setAwakeEndTime(e.target.value); haptic('light'); }}
                   className="w-full rounded-lg px-3 py-3 text-base outline-none"
-                  style={{ backgroundColor: '#FFF3E6', color: '#3D3229', WebkitAppearance: 'none' } as React.CSSProperties}
+                  style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-text)', WebkitAppearance: 'none' } as React.CSSProperties}
                 />
                 {(() => {
                   const [eh, em] = awakeEndTime.split(':').map(Number);
@@ -1569,9 +1572,9 @@ export default function Home() {
                     onClick={() => { haptic('light'); setAwakeEndUsePrevDay(!awakeEndUsePrevDay); }}
                     className="mt-2 text-sm px-3 py-1.5 rounded"
                     style={{
-                      color: awakeEndUsePrevDay ? '#7BA68C' : '#A89888',
-                      background: awakeEndUsePrevDay ? '#F0F7F2' : 'transparent',
-                      border: awakeEndUsePrevDay ? '1px solid #D4E2D9' : '1px solid transparent',
+                      color: awakeEndUsePrevDay ? 'var(--app-awake)' : 'var(--app-text-muted)',
+                      background: awakeEndUsePrevDay ? 'var(--app-success-soft-alt)' : 'transparent',
+                      border: awakeEndUsePrevDay ? '1px solid var(--app-success-line)' : '1px solid transparent',
                     }}
                   >
                     {awakeEndUsePrevDay ? '✓ 记为昨天' : '记为昨天'}
@@ -1579,14 +1582,14 @@ export default function Home() {
                 )}
               </div>
               <div>
-                <label className="text-xs mb-1.5 block" style={{ color: '#A89888' }}>备注</label>
+                <label className="text-xs mb-1.5 block" style={{ color: 'var(--app-text-muted)' }}>备注</label>
                 <input
                   type="text"
                   value={awakeNote}
                   onChange={(e) => setAwakeNote(e.target.value)}
                   placeholder="如：精神好/哭闹"
                   className="w-full rounded-lg px-3 py-3 text-base outline-none"
-                  style={{ backgroundColor: '#FFF3E6', color: '#3D3229' }}
+                  style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-text)' }}
                 />
               </div>
             </div>
@@ -1594,8 +1597,8 @@ export default function Home() {
             <button
               onClick={() => { haptic('medium'); handleConfirmAwake(); }}
               disabled={submitting}
-              className="w-full py-4 rounded-xl text-white font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50 mt-5"
-              style={{ backgroundColor: '#7BA68C' }}
+              className="w-full py-4 rounded-xl text-app-on-accent font-medium text-lg transition-transform active:scale-[0.98] disabled:opacity-50 mt-5"
+              style={{ backgroundColor: 'var(--app-awake)' }}
             >
               {submitting ? '保存中' : '确认'}
             </button>
@@ -1633,64 +1636,64 @@ export default function Home() {
             <>
               {hasRecords && (
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium" style={{ color: '#8B7E74' }}>今日</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--app-text-secondary)' }}>今日</span>
                 </div>
               )}
               {!hasRecords ? (
-                <p className="text-center text-sm py-8" style={{ color: '#C4B8AE' }}>还没有今天的记录</p>
+                <p className="text-center text-sm py-8" style={{ color: 'var(--app-text-ghost)' }}>还没有今天的记录</p>
               ) : (
                 <div className="space-y-2">
                   {allItems.map((item) => item._type === 'feed' ? (
                     <SwipeToDelete deleteLabel={`删除喂奶记录：${item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
-                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#D4A76A' }} />
-                        <span className="text-base" style={{ color: '#3D3229' }}>
+                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-primary)' }} />
+                        <span className="text-base" style={{ color: 'var(--app-text)' }}>
                           {item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}
                         </span>
                         {feedIntervalMap.has(item.id) && (
-                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: '#C49556', backgroundColor: '#FFF3E6' }}>
+                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--app-primary-strong)', backgroundColor: 'var(--app-primary-soft)' }}>
                             +{feedIntervalMap.get(item.id)}
                           </span>
                         )}
                         {item.feeder_name && (
-                          <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.feeder_name}</span>
+                          <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.feeder_name}</span>
                         )}
-                        <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>
+                        <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>
                           {formatTime(item.started_at)}
                         </span>
                       </div>
                     </SwipeToDelete>
                   ) : item._type === 'poop' ? (
                     <SwipeToDelete deleteLabel={`删除便便记录：${item.note || '便便'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
-                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#B8A08A' }} />
-                        <PoopIcon size={14} color="#B8A08A" />
-                        <span className="text-base" style={{ color: '#3D3229' }}>
+                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-poop)' }} />
+                        <PoopIcon size={14} color="var(--app-poop)" />
+                        <span className="text-base" style={{ color: 'var(--app-text)' }}>
                           {item.note || '便便'}
                         </span>
                         {item.recorder_name && (
-                          <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>
+                          <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>
                         )}
-                        <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>
+                        <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>
                           {formatTime(item.started_at)}
                         </span>
                       </div>
                     </SwipeToDelete>
                   ) : item._type === 'med' ? (
                     <SwipeToDelete deleteLabel={`删除吃药记录：${item.medicine_name || '吃药'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
-                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B9EAF' }} />
-                        <PillIcon size={14} color="#8B9EAF" />
-                        <span className="text-base" style={{ color: '#3D3229' }}>
+                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-med)' }} />
+                        <PillIcon size={14} color="var(--app-med)" />
+                        <span className="text-base" style={{ color: 'var(--app-text)' }}>
                           {item.medicine_name || '吃药'}
                         </span>
                         {item.dosage && (
-                          <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.dosage}</span>
+                          <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.dosage}</span>
                         )}
                         {item.recorder_name && (
-                          <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>
+                          <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>
                         )}
-                        <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>
+                        <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>
                           {formatTime(item.started_at)}
                         </span>
                       </div>
@@ -1701,16 +1704,16 @@ export default function Home() {
                     </SwipeToDelete>
                   ) : (
                     <SwipeToDelete deleteLabel={`删除清醒记录：${item.ended_at ? getElapsedShort(item.started_at, item.ended_at) : '进行中'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
-                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#7BAF7B' }} />
-                        <EyeOpenIcon size={14} color="#7BAF7B" />
-                        <span className="text-base" style={{ color: '#3D3229' }}>
+                      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-awake-alt)' }} />
+                        <EyeOpenIcon size={14} color="var(--app-awake-alt)" />
+                        <span className="text-base" style={{ color: 'var(--app-text)' }}>
                           {item.ended_at ? `清醒 ${getElapsedShort(item.started_at, item.ended_at)}` : '清醒中...'}
                         </span>
                         {item.recorder_name && (
-                          <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>
+                          <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>
                         )}
-                        <span className="ml-auto text-sm tabular-nums" style={{ color: item.ended_at ? '#BFB3A8' : '#7BAF7B' }}>
+                        <span className="ml-auto text-sm tabular-nums" style={{ color: item.ended_at ? 'var(--app-text-faint)' : 'var(--app-awake-alt)' }}>
                           {formatTime(item.started_at)}{item.ended_at ? `-${formatTime(item.ended_at)}` : ''}
                         </span>
                       </div>
@@ -1728,22 +1731,22 @@ export default function Home() {
         <button
           onClick={() => { haptic('light'); handleOpenHistory(); }}
           className="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-          style={{ backgroundColor: '#FFFCF8', color: '#A89888' }}
+          style={{ backgroundColor: 'var(--app-surface)', color: 'var(--app-text-muted)' }}
         >
-          <HistoryIcon size={16} color="#A89888" />
+          <HistoryIcon size={16} color="var(--app-text-muted)" />
           历史记录
         </button>
       </div>
 
       {/* History Overlay */}
       {showHistory && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: '#FFF9F2' }}>
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--app-bg)' }}>
           <div className="flex items-center justify-between px-5 py-4">
-            <button onClick={() => { haptic('light'); handleCloseHistory(); }} className="flex items-center gap-1 text-base" style={{ color: '#D4A76A' }}>
-              <BackIcon size={18} color="#D4A76A" />
+            <button onClick={() => { haptic('light'); handleCloseHistory(); }} className="flex items-center gap-1 text-base" style={{ color: 'var(--app-primary)' }}>
+              <BackIcon size={18} color="var(--app-primary)" />
               返回
             </button>
-            <span className="text-base font-medium" style={{ color: '#3D3229' }}>历史记录</span>
+            <span className="text-base font-medium" style={{ color: 'var(--app-text)' }}>历史记录</span>
             <div className="w-12" />
           </div>
 
@@ -1758,8 +1761,8 @@ export default function Home() {
                 onClick={() => { haptic('light'); handleHistoryDaysChange(opt.value); }}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-transform active:scale-95"
                 style={{
-                  backgroundColor: historyDays === opt.value ? '#D4A76A' : '#FFFCF8',
-                  color: historyDays === opt.value ? '#FFFFFF' : '#A89888',
+                  backgroundColor: historyDays === opt.value ? 'var(--app-primary)' : 'var(--app-surface)',
+                  color: historyDays === opt.value ? 'var(--app-on-accent)' : 'var(--app-text-muted)',
                 }}
               >
                 {opt.label}
@@ -1769,11 +1772,11 @@ export default function Home() {
 
           <div className="flex-1 overflow-y-auto px-5 pb-8">
             {historyLoading ? (
-              <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>加载中</p>
+              <p className="text-center text-sm py-12" style={{ color: 'var(--app-text-muted)' }}>加载中</p>
             ) : historyError ? (
-              <p role="alert" className="text-center text-sm py-12" style={{ color: '#C96F5B' }}>{historyError}</p>
+              <p role="alert" className="text-center text-sm py-12" style={{ color: 'var(--app-danger-strong)' }}>{historyError}</p>
             ) : (historyFeeds.length === 0 && historyPoops.length === 0 && historyMedications.length === 0 && historyAwakes.length === 0 && historySolidFoods.length === 0) ? (
-              <p className="text-center text-sm py-12" style={{ color: '#A89888' }}>没有记录</p>
+              <p className="text-center text-sm py-12" style={{ color: 'var(--app-text-muted)' }}>没有记录</p>
             ) : (
               (() => {
                 type CombinedItem = (FeedRecord & { _type: 'feed' }) | (PoopRecord & { _type: 'poop' }) | (MedicationRecord & { _type: 'med' }) | (SolidFoodRecord & { _type: 'solid-food' }) | (AwakeRecord & { _type: 'awake' });
@@ -1839,43 +1842,43 @@ export default function Home() {
                   return (
                     <div key={dateLabel} className="mb-5">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium" style={{ color: '#3D3229' }}>{dateLabel}</span>
-                        <span className="text-sm" style={{ color: '#A89888' }}>{stats}</span>
+                        <span className="text-sm font-medium" style={{ color: 'var(--app-text)' }}>{dateLabel}</span>
+                        <span className="text-sm" style={{ color: 'var(--app-text-muted)' }}>{stats}</span>
                       </div>
                       <div className="space-y-2">
                         {items.map((item) => item._type === 'feed' ? (
                           <SwipeToDelete deleteLabel={`删除喂奶记录：${item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteFeed(item.id); }}>
-                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#D4A76A' }} />
-                              <span className="text-base" style={{ color: '#3D3229' }}>{item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}</span>
+                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-primary)' }} />
+                              <span className="text-base" style={{ color: 'var(--app-text)' }}>{item.amount_ml ? `${item.amount_ml}ml` : '奶粉'}</span>
                               {globalHistoryFeedIntervalMap.has(item.id) && (
-                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: '#C49556', backgroundColor: '#FFF3E6' }}>
+                                <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--app-primary-strong)', backgroundColor: 'var(--app-primary-soft)' }}>
                                   +{globalHistoryFeedIntervalMap.get(item.id)}
                                 </span>
                               )}
-                              {item.feeder_name && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.feeder_name}</span>}
-                              <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>{formatTime(item.started_at)}</span>
+                              {item.feeder_name && <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.feeder_name}</span>}
+                              <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>{formatTime(item.started_at)}</span>
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'poop' ? (
                           <SwipeToDelete deleteLabel={`删除便便记录：${item.note || '便便'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeletePoop(item.id); }}>
-                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#B8A08A' }} />
-                              <PoopIcon size={14} color="#B8A08A" />
-                              <span className="text-base" style={{ color: '#3D3229' }}>{item.note || '便便'}</span>
-                              {item.recorder_name && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>}
-                              <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>{formatTime(item.started_at)}</span>
+                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-poop)' }} />
+                              <PoopIcon size={14} color="var(--app-poop)" />
+                              <span className="text-base" style={{ color: 'var(--app-text)' }}>{item.note || '便便'}</span>
+                              {item.recorder_name && <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>}
+                              <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>{formatTime(item.started_at)}</span>
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'med' ? (
                           <SwipeToDelete deleteLabel={`删除吃药记录：${item.medicine_name || '吃药'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteMed(item.id); }}>
-                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B9EAF' }} />
-                              <PillIcon size={14} color="#8B9EAF" />
-                              <span className="text-base" style={{ color: '#3D3229' }}>{item.medicine_name || '吃药'}</span>
-                              {item.dosage && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.dosage}</span>}
-                              {item.recorder_name && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>}
-                              <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>{formatTime(item.started_at)}</span>
+                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-med)' }} />
+                              <PillIcon size={14} color="var(--app-med)" />
+                              <span className="text-base" style={{ color: 'var(--app-text)' }}>{item.medicine_name || '吃药'}</span>
+                              {item.dosage && <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.dosage}</span>}
+                              {item.recorder_name && <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>}
+                              <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>{formatTime(item.started_at)}</span>
                             </div>
                           </SwipeToDelete>
                         ) : item._type === 'solid-food' ? (
@@ -1884,12 +1887,12 @@ export default function Home() {
                           </SwipeToDelete>
                         ) : (
                           <SwipeToDelete deleteLabel={`删除清醒记录：${item.note || '清醒'}，${formatTime(item.started_at)}`} key={item.id} onDelete={() => { haptic('medium'); handleDeleteAwake(item.id); }}>
-                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#FFFCF8' }}>
-                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#7BAF8E' }} />
-                              <EyeOpenIcon size={14} color="#7BAF8E" />
-                              <span className="text-base" style={{ color: '#3D3229' }}>{item.note || '清醒'}</span>
-                              {item.recorder_name && <span className="text-sm" style={{ color: '#BFB3A8' }}>{item.recorder_name}</span>}
-                              <span className="ml-auto text-sm tabular-nums" style={{ color: '#BFB3A8' }}>{formatTime(item.started_at)}</span>
+                            <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: 'var(--app-surface)' }}>
+                              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--app-awake-alt)' }} />
+                              <EyeOpenIcon size={14} color="var(--app-awake-alt)" />
+                              <span className="text-base" style={{ color: 'var(--app-text)' }}>{item.note || '清醒'}</span>
+                              {item.recorder_name && <span className="text-sm" style={{ color: 'var(--app-text-faint)' }}>{item.recorder_name}</span>}
+                              <span className="ml-auto text-sm tabular-nums" style={{ color: 'var(--app-text-faint)' }}>{formatTime(item.started_at)}</span>
                             </div>
                           </SwipeToDelete>
                         ))}
@@ -1907,7 +1910,7 @@ export default function Home() {
     {showMoreRecords ? (
       <div
         className="fixed inset-0 z-50 flex items-end justify-center"
-        style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
+        style={{ backgroundColor: 'var(--app-overlay)' }}
         onClick={handleCloseMoreRecords}
       >
         <div
@@ -1915,13 +1918,13 @@ export default function Home() {
           aria-modal="true"
           aria-labelledby="more-records-title"
           className="w-full max-w-sm rounded-t-2xl p-6 pb-8"
-          style={{ backgroundColor: '#FFF9F2' }}
+          style={{ backgroundColor: 'var(--app-sheet)' }}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="mb-5 flex items-center justify-between">
-            <span id="more-records-title" className="text-base font-medium" style={{ color: '#3D3229' }}>更多记录</span>
+            <span id="more-records-title" className="text-base font-medium" style={{ color: 'var(--app-text)' }}>更多记录</span>
             <button type="button" aria-label="关闭更多记录" onClick={handleCloseMoreRecords} className="p-1">
-              <CloseIcon size={18} color="#BFB3A8" />
+              <CloseIcon size={18} color="var(--app-text-faint)" />
             </button>
           </div>
 
@@ -1931,7 +1934,7 @@ export default function Home() {
               onClick={handleQuickAddAwake}
               disabled={submitting || Boolean(room.activeAwake)}
               className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
-              style={{ backgroundColor: '#EEF5EF', color: '#5F8B6A' }}
+              style={{ backgroundColor: 'var(--app-success-soft)', color: 'var(--app-success-strong)' }}
             >
               <EyeOpenIcon size={24} />
               <span className="text-sm font-medium">{room.activeAwake ? '清醒中' : currentRoomPendingAwake ? '重试同步' : '清醒'}</span>
@@ -1941,7 +1944,7 @@ export default function Home() {
               onClick={handleOpenMedicationFromMore}
               disabled={submitting}
               className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl disabled:opacity-50"
-              style={{ backgroundColor: '#EEF1F3', color: '#758C9A' }}
+              style={{ backgroundColor: 'var(--app-med-soft-alt)', color: 'var(--app-med-strong)' }}
             >
               <PillIcon size={24} />
               <span className="text-sm font-medium">吃药</span>
@@ -1949,7 +1952,7 @@ export default function Home() {
           </div>
 
           {awakeStartError ? (
-            <p role="alert" className="mt-4 text-center text-sm" style={{ color: '#C96F5B' }}>
+            <p role="alert" className="mt-4 text-center text-sm" style={{ color: 'var(--app-danger-strong)' }}>
               {awakeStartError}
             </p>
           ) : null}

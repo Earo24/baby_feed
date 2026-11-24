@@ -70,10 +70,10 @@ const GRANULARITY_LABELS: Record<Granularity, string> = {
 };
 
 const EVENT_TYPES = [
-  { key: 'poop_count', label: '便便', color: '#B8A08A' },
-  { key: 'medication_count', label: '吃药', color: '#8B9EAF' },
-  { key: 'solid_food_count', label: '辅食', color: '#6F9B78' },
-  { key: 'awake_count', label: '清醒', color: '#7BAF8E' },
+  { key: 'poop_count', label: '便便', color: 'var(--app-poop)' },
+  { key: 'medication_count', label: '吃药', color: 'var(--app-med)' },
+  { key: 'solid_food_count', label: '辅食', color: 'var(--app-success)' },
+  { key: 'awake_count', label: '清醒', color: 'var(--app-awake-alt)' },
 ] as const satisfies ReadonlyArray<{
   key: keyof TrendEventCounts;
   label: string;
@@ -92,9 +92,9 @@ const SHARED_CHART_TOP_MARGIN = 56;
 const EVENT_PLOT_TOP = SHARED_CHART_TOP_MARGIN;
 
 const chartConfig = {
-  volume: { label: '平均每天奶量', color: '#E3B87A' },
-  feed_count: { label: '喂奶次数', color: '#A89888' },
-  measured_count: { label: '有奶量记录次数', color: '#A89888' },
+  volume: { label: '平均每天奶量', color: 'var(--app-chart-bar)' },
+  feed_count: { label: '喂奶次数', color: 'var(--app-text-muted)' },
+  measured_count: { label: '有奶量记录次数', color: 'var(--app-text-muted)' },
 } satisfies ChartConfig;
 
 function formatXAxisLabel(granularity: Granularity, label: unknown): string {
@@ -148,7 +148,7 @@ function TrendBarWithEvents({
   y = 0,
   width = 0,
   height = 0,
-  fill = '#E3B87A',
+  fill = 'var(--app-chart-bar)',
   payload,
 }: TrendBarShapeProps) {
   const events = payload?.events ?? EMPTY_EVENTS;
@@ -185,7 +185,7 @@ function TrendLineDot({ cx = 0, cy = 0, payload }: TrendLineDotProps) {
 
   return (
     <g>
-      <circle cx={cx} cy={cy} r={4} fill="#D9917A" stroke="#FFFCF8" strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={4} fill="var(--app-chart-line)" stroke="var(--app-surface)" strokeWidth={2} />
       {EVENT_TYPES.map((event, index) => (
         events[event.key] > 0 ? (
           <circle
@@ -215,7 +215,7 @@ function TrendTooltip({ active, payload, granularity }: TrendTooltipProps) {
   return (
     <div
       className="min-w-44 rounded-lg border px-3 py-2 text-xs shadow-lg"
-      style={{ backgroundColor: '#FFFCF8', borderColor: '#EDE5DC', color: '#3D3229' }}
+      style={{ backgroundColor: 'var(--app-surface)', borderColor: 'var(--app-border)', color: 'var(--app-text)' }}
     >
       <p className="mb-1 font-medium">{point.label}</p>
       <p>{granularity === 'day' ? '当天奶量' : '平均每天奶量'}：{granularity === 'day' ? point.total_ml : point.average_daily_ml} ml</p>
@@ -235,7 +235,7 @@ function TrendTooltip({ active, payload, granularity }: TrendTooltipProps) {
         ) : null,
       )}
       {events.awake_count > 0 || events.awake_minutes > 0 ? (
-        <p style={{ color: '#7BAF8E' }}>
+        <p style={{ color: 'var(--app-awake-alt)' }}>
           清醒：{events.awake_count} 次 · {events.awake_minutes} 分钟
         </p>
       ) : null}
@@ -311,25 +311,25 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
   const volumeDataKey = granularity === 'day' ? 'total_ml' : 'average_daily_ml';
 
   return (
-    <section className="w-full min-w-0 overflow-hidden rounded-2xl bg-[#FFFCF8] p-4" aria-label="奶量趋势">
+    <section className="w-full min-w-0 overflow-hidden rounded-2xl bg-[var(--app-surface)] p-4" aria-label="奶量趋势">
       <div className="mb-3 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-baseline gap-2">
-          <span className="text-sm" style={{ color: '#8F7968' }}>今日总量</span>
-          <strong className="text-xl font-semibold tabular-nums" style={{ color: '#3D3229' }}>
+          <span className="text-sm" style={{ color: 'var(--app-warm-muted)' }}>今日总量</span>
+          <strong className="text-xl font-semibold tabular-nums" style={{ color: 'var(--app-text)' }}>
             {todayTotalMl} ml
           </strong>
         </div>
-        <div className="flex max-w-full flex-wrap gap-1 rounded-xl bg-[#FFF3E6] p-1" role="group" aria-label="趋势粒度">
+        <div className="flex max-w-full flex-wrap gap-1 rounded-xl bg-[var(--app-primary-soft)] p-1" role="group" aria-label="趋势粒度">
           {(Object.keys(GRANULARITY_LABELS) as Granularity[]).map((option) => (
             <button
               key={option}
               type="button"
               aria-pressed={granularity === option}
               onClick={() => setGranularity(option)}
-              className="min-h-10 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9917A]"
+              className="min-h-10 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-chart-line)]"
               style={{
-                backgroundColor: granularity === option ? '#D9917A' : '#FFF3E6',
-                color: granularity === option ? '#FFFFFF' : '#8F7968',
+                backgroundColor: granularity === option ? 'var(--app-chart-line)' : 'var(--app-primary-soft)',
+                color: granularity === option ? 'var(--app-on-accent)' : 'var(--app-warm-muted)',
               }}
             >
               {GRANULARITY_LABELS[option]}
@@ -339,21 +339,21 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
       </div>
 
       {loading ? (
-        <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>加载中</p>
+        <p className="py-12 text-center text-sm" style={{ color: 'var(--app-text-muted)' }}>加载中</p>
       ) : error ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
-          <p className="text-sm" style={{ color: '#C96F5B' }}>{error}</p>
+          <p className="text-sm" style={{ color: 'var(--app-danger-strong)' }}>{error}</p>
           <button
             type="button"
             onClick={retry}
             className="min-h-10 rounded-lg px-4 text-sm"
-            style={{ backgroundColor: '#FFF3E6', color: '#C96F5B' }}
+            style={{ backgroundColor: 'var(--app-primary-soft)', color: 'var(--app-danger-strong)' }}
           >
             重试
           </button>
         </div>
       ) : !hasMeasuredData ? (
-        <p className="py-12 text-center text-sm" style={{ color: '#A89888' }}>暂无可统计奶量</p>
+        <p className="py-12 text-center text-sm" style={{ color: 'var(--app-text-muted)' }}>暂无可统计奶量</p>
       ) : (
         <ChartContainer config={chartConfig} className="h-56 w-full min-w-0">
           {granularity === 'day' ? (
@@ -366,7 +366,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                 bottom: 24,
               }}
             >
-              <CartesianGrid vertical={false} stroke="#F1E5D8" />
+              <CartesianGrid vertical={false} stroke="var(--app-chart-grid)" />
               <XAxis
                 dataKey="label"
                 axisLine={false}
@@ -380,24 +380,24 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                     ? formatXAxisLabel(granularity, value)
                     : ''
                 )}
-                tick={{ fill: '#A89888', fontSize: 9 }}
+                tick={{ fill: 'var(--app-text-muted)', fontSize: 9 }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 width={42}
-                tick={{ fill: '#A89888', fontSize: 10 }}
+                tick={{ fill: 'var(--app-text-muted)', fontSize: 10 }}
                 tickFormatter={(value) => `${value}`}
               />
-              <ChartTooltip cursor={{ stroke: '#D9917A', strokeDasharray: '4 4' }} content={<TrendTooltip granularity={granularity} />} />
+              <ChartTooltip cursor={{ stroke: 'var(--app-chart-line)', strokeDasharray: '4 4' }} content={<TrendTooltip granularity={granularity} />} />
               <Line
                 dataKey="total_ml"
                 name="volume"
                 type="monotone"
-                stroke="#D9917A"
+                stroke="var(--app-chart-line)"
                 strokeWidth={2.5}
                 dot={<TrendLineDot />}
-                activeDot={{ r: 5, fill: '#D9917A', stroke: '#FFFCF8', strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: 'var(--app-chart-line)', stroke: 'var(--app-surface)', strokeWidth: 2 }}
                 connectNulls
               />
               <Line dataKey="feed_count" name="feed_count" stroke="transparent" dot={false} />
@@ -413,7 +413,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                 bottom: 4,
               }}
             >
-              <CartesianGrid vertical={false} stroke="#F1E5D8" />
+              <CartesianGrid vertical={false} stroke="var(--app-chart-grid)" />
               <XAxis
                 dataKey="label"
                 axisLine={false}
@@ -425,21 +425,21 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
                     ? formatXAxisLabel(granularity, value)
                     : ''
                 )}
-                tick={{ fill: '#A89888', fontSize: 10 }}
+                tick={{ fill: 'var(--app-text-muted)', fontSize: 10 }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 width={42}
-                tick={{ fill: '#A89888', fontSize: 10 }}
+                tick={{ fill: 'var(--app-text-muted)', fontSize: 10 }}
                 tickFormatter={(value) => `${value}`}
               />
-              <ChartTooltip cursor={{ fill: '#FFF3E6' }} content={<TrendTooltip granularity={granularity} />} />
+              <ChartTooltip cursor={{ fill: 'var(--app-primary-soft)' }} content={<TrendTooltip granularity={granularity} />} />
               <Bar dataKey={volumeDataKey} name="volume" shape={<TrendBarWithEvents />}>
                 {points.map((point) => (
                   <Cell
                     key={point.period_start}
-                    fill={point.total_ml > 0 && point.total_ml === maxTotalMl ? '#D9917A' : '#E3B87A'}
+                    fill={point.total_ml > 0 && point.total_ml === maxTotalMl ? 'var(--app-chart-line)' : 'var(--app-chart-bar)'}
                   />
                 ))}
               </Bar>
@@ -450,7 +450,7 @@ export function FeedVolumeTrend({ roomId, todayTotalMl, refreshKey }: FeedVolume
         </ChartContainer>
       )}
       {!loading && !error && hasMeasuredData ? (
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: '#8F7968' }}>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--app-warm-muted)' }}>
           {EVENT_TYPES.map((event) => (
             <span key={event.key} className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: event.color }} aria-hidden="true" />
