@@ -19,6 +19,8 @@ pnpm run build        # 构建生产版本
 pnpm run start        # 生产环境
 ```
 
+如果开发端口 5000 被占用，可运行 `DEPLOY_RUN_PORT=5001 pnpm run dev`，在端口 5001 启动开发服务。
+
 ## 目录结构
 ```
 src/
