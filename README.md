@@ -39,7 +39,7 @@ NODE_ENV=production pnpm run start
 
 `pnpm run start` 运行的是构建产物 `dist/server.js`，因此需要先执行 `pnpm run build`。端口同样可通过 `DEPLOY_RUN_PORT` 修改。
 
-### 4. 验证核心逻辑
+### 4. 运行核心测试
 
 运行时间和喂养统计相关的单元测试，确认记录周期与统计逻辑正常：
 
