@@ -39,6 +39,14 @@ NODE_ENV=production pnpm run start
 
 `pnpm run start` 运行的是构建产物 `dist/server.js`，因此需要先执行 `pnpm run build`。端口同样可通过 `DEPLOY_RUN_PORT` 修改。
 
+### 4. 运行核心测试
+
+运行时间和喂养统计相关的单元测试，确认记录周期与统计逻辑正常：
+
+```bash
+pnpm exec tsx --test tests/time.test.ts tests/feed-stats.test.ts
+```
+
 ### 数据库
 
 默认数据库文件为 `data/baby-feed.sqlite`，首次运行时会自动创建目录、表（`rooms`、`feed_records`、`poop_records`、`medication_records`、`awake_records`、`solid_food_records`）和索引，无需 Supabase 项目或额外环境变量。
