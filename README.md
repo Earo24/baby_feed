@@ -390,3 +390,4 @@ export const useStore = create<Store>((set) => ({
 3. **遵循 Next.js App Router 规范**，正确区分服务端/客户端组件
 4. **使用 TypeScript** 进行类型安全开发
 5. **使用 `@/` 路径别名** 导入模块（已配置）
+6. 修改喂养统计或时间格式逻辑后，请运行项目的时间与喂养统计测试。
